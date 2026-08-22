@@ -4,13 +4,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 import BowlingLane, { ThrowState } from "@/src/components/BowlingLane";
 import Scorecard from "@/src/components/Scorecard";
 import PowerUpTray from "@/src/components/PowerUpTray";
 import TimingMeters from "@/src/components/TimingMeters";
 import Glass from "@/src/components/Glass";
+import Celebration from "@/src/components/Celebration";
 import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { POWERUPS, PowerUpId } from "@/src/game/powerups";
 import {
@@ -312,7 +313,7 @@ export default function Game() {
             onPress={() => router.replace("/")}
             style={styles.iconBtn}
           >
-            <Ionicons name="close" size={22} color={colors.onSurface} />
+            <Ionicons name="close" size={22} color="#fff" />
           </Pressable>
           <View style={styles.scorePills}>
             <View
@@ -343,32 +344,18 @@ export default function Game() {
             <Text style={styles.frameBadgeText}>F{displayFrame}</Text>
           </View>
         </View>
-        <Glass style={styles.scorecardGlass} intensity={30}>
+        <View style={styles.scorecardPanel}>
           <Scorecard
             frames={activeGame.frames}
             currentFrame={activeGame.currentFrame}
+            dark
             testID="scorecard"
           />
-        </Glass>
+        </View>
       </View>
 
       {/* Turn / status banner */}
-      {banner && (
-        <Animated.View
-          entering={ZoomIn.duration(220)}
-          style={styles.bannerWrap}
-          pointerEvents="none"
-        >
-          <Text
-            style={[
-              styles.bannerText,
-              banner === "GUTTER" && { color: colors.onSurfaceInverse },
-            ]}
-          >
-            {banner}
-          </Text>
-        </Animated.View>
-      )}
+      {banner && <Celebration text={banner} />}
 
       {/* Bottom controls */}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing.sm }]}>
@@ -418,7 +405,7 @@ export default function Game() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: "#0b0b0f" },
   topHud: {
     position: "absolute",
     left: spacing.md,
@@ -430,7 +417,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: "rgba(24,24,30,0.82)",
+    borderWidth: 1,
+    borderColor: "#3A3A42",
     alignItems: "center",
     justifyContent: "center",
     ...shadow.card,
@@ -440,43 +429,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: "rgba(24,24,30,0.82)",
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     height: 38,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: "#3A3A42",
     ...shadow.card,
   },
   scorePillOpp: {},
-  scorePillActive: { borderColor: colors.brandPrimary },
-  scorePillLabel: { fontFamily: font.display, fontSize: type.sm, color: colors.onSurfaceSecondary },
-  scorePillValue: { fontFamily: font.display, fontSize: type.xl, color: colors.onSurface },
+  scorePillActive: { borderColor: colors.brand },
+  scorePillLabel: { fontFamily: font.display, fontSize: type.sm, color: "#9A9AA2" },
+  scorePillValue: { fontFamily: font.display, fontSize: type.xl, color: "#FFFFFF" },
   frameBadge: {
     width: 42,
     height: 38,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceInverse,
+    backgroundColor: colors.brand,
     alignItems: "center",
     justifyContent: "center",
     ...shadow.card,
   },
-  frameBadgeText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurfaceInverse },
-  scorecardGlass: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
-  bannerWrap: {
-    position: "absolute",
-    top: "34%",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  bannerText: {
-    fontFamily: font.display,
-    fontSize: type["4xl"],
-    color: colors.brandPrimary,
-    textShadowColor: "rgba(0,0,0,0.15)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+  frameBadgeText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  scorecardPanel: {
+    backgroundColor: "rgba(14,14,18,0.9)",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "#3A3A42",
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   bottom: {
     position: "absolute",

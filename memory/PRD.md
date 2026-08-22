@@ -31,6 +31,11 @@ to cause strikes. Reference: Baseball Simulator 1000 ("Ultra" plays).
 - Leaderboard + personal stats.
 
 ## Implemented (2026-08-22)
+- **First-person 3D lane view (v2)**: perspective wood lane receding into a dark
+  alley, pins standing in a dark pin-pit at the far end, neon back-wall accent,
+  ball rolls away from viewer scaling down with distance, aiming arrows.
+- Dark gameplay HUD: dark 10-frame scorecard with orange frame numbers + dark
+  score pills; celebration overlay (STRIKE/SPARE with animated stars, GUTTER).
 - Home / mode select with hero art.
 - Animated bowling lane: perspective pins, rolling ball, power-up visual FX
   (magnet curve, giant ball, bomb/laser flash), pin-fall animation.

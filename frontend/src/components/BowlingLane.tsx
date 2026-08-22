@@ -10,8 +10,7 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, radius } from "@/src/theme/theme";
-import { PINS, AIM_SCALE } from "@/src/game/engine";
+import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
 
 export interface ThrowState {
@@ -26,58 +25,61 @@ interface Props {
   onArrive?: () => void;
 }
 
-const BALL_COLORS: Record<string, string> = {
-  magnet: colors.brandSecondary,
-  giant: colors.brand,
-  muscle: colors.brandPrimary,
-  bomb: "#1A1A1A",
-  lightning: colors.brandTertiary,
-  none: colors.brandPrimary,
+const BALL_COLORS: Record<string, [string, string]> = {
+  magnet: ["#5BE584", "#1F9D4E"],
+  giant: ["#FFE066", "#E0A800"],
+  muscle: ["#FF6B7A", "#C81E36"],
+  bomb: ["#3A3A3C", "#0A0A0A"],
+  lightning: ["#FFF06A", "#E0B400"],
+  none: ["#FF7A45", "#D81E5B"],
 };
 
 function Pin({
   up,
   cx,
   cy,
-  size,
+  scale,
 }: {
   up: boolean;
   cx: number;
   cy: number;
-  size: number;
+  scale: number;
 }) {
   const fall = useSharedValue(up ? 0 : 1);
   useEffect(() => {
     fall.value = withTiming(up ? 0 : 1, {
-      duration: up ? 120 : 420,
+      duration: up ? 100 : 430,
       easing: Easing.out(Easing.quad),
     });
   }, [up]);
 
+  const w = 26 * scale;
+  const h = 58 * scale;
+
   const style = useAnimatedStyle(() => ({
-    opacity: 1 - fall.value,
+    opacity: 1 - fall.value * 0.9,
     transform: [
-      { translateX: fall.value * (cx > 0 ? 22 : -22) },
-      { translateY: fall.value * 34 },
-      { rotate: `${fall.value * 68}deg` },
+      { translateX: fall.value * (cx > 0 ? 30 : -30) * scale },
+      { translateY: fall.value * 30 * scale },
+      { rotate: `${fall.value * 78 * (cx > 0 ? 1 : -1)}deg` },
     ],
   }));
 
   return (
     <Animated.View
       style={[
-        styles.pin,
-        {
-          left: cx - size / 2,
-          top: cy - size * 0.7,
-          width: size,
-          height: size * 1.4,
-          borderRadius: size / 2,
-        },
+        styles.pinWrap,
+        { left: cx - w / 2, top: cy - h, width: w, height: h },
         style,
       ]}
     >
-      <View style={[styles.pinNeck, { top: size * 0.28, height: size * 0.16 }]} />
+      {/* pin body */}
+      <View style={styles.pinBody}>
+        <View style={[styles.pinStripe, { top: h * 0.24 }]} />
+        <View style={[styles.pinStripe, { top: h * 0.36 }]} />
+      </View>
+      {/* neck taper (head) */}
+      <View style={[styles.pinHead, { width: w * 0.62, height: h * 0.34, left: w * 0.19 }]} />
     </Animated.View>
   );
 }
@@ -94,29 +96,32 @@ export default function BowlingLane({ standing, throwState, onArrive }: Props) {
   };
 
   const { w, h } = dim;
-  const laneW = w * 0.74;
-  const laneLeft = (w - laneW) / 2;
-  const laneCenter = laneLeft + laneW / 2;
-  const pinTop = h * 0.08;
-  const clusterH = h * 0.17;
-  const spreadUnit = laneW * 0.15;
+  const centerX = w / 2;
+  const pinDeckY = h * 0.34;
+  const nearY = h;
+  const nearHalf = w * 0.46;
+  const farHalf = w * 0.17;
+  const gutter = w * 0.05;
 
-  const pinPos = (x: number, row: number) => {
-    const depthT = row / 3;
-    const cx = laneCenter + x * spreadUnit * (0.6 + 0.4 * (1 - depthT));
-    const cy = pinTop + (1 - depthT) * clusterH;
-    const size = 24 * (1 - depthT * 0.16);
-    return { cx, cy, size };
+  const project = (x: number, t: number) => {
+    const y = nearY + t * (pinDeckY - nearY);
+    const half = nearHalf + t * (farHalf - nearHalf);
+    const sx = centerX + x * half;
+    const scale = 1 - t * 0.76;
+    return { x: sx, y, scale };
   };
 
+  // pin depth: back rows further (larger t)
+  const pinT = (row: number) => 0.8 + row * 0.05;
+  const PIN_X = 0.42;
+
   const aim = throwState?.aim ?? 0;
-  const targetX = laneCenter + aim * AIM_SCALE * spreadUnit;
-  const startX = laneCenter;
-  const startY = h * 0.92;
-  const targetY = pinTop + clusterH;
   const isGiant = throwState?.powerup === "giant";
   const isMagnet = throwState?.powerup === "magnet";
-  const ballSize = isGiant ? 52 : 30;
+
+  const startP = project(0, 0.03);
+  const endP = project(aim * 0.42, 0.8);
+  const baseBall = w * 0.16;
 
   useEffect(() => {
     if (!throwState || w === 0) return;
@@ -124,96 +129,213 @@ export default function BowlingLane({ standing, throwState, onArrive }: Props) {
     prog.value = 0;
     prog.value = withTiming(
       1,
-      { duration: 780, easing: Easing.in(Easing.quad) },
+      { duration: 820, easing: Easing.in(Easing.quad) },
       (finished) => {
         if (finished && onArrive) runOnJS(onArrive)();
       },
     );
     if (throwState.powerup === "lightning" || throwState.powerup === "bomb") {
-      flash.value = 0;
       flash.value = withSequence(
-        withTiming(0, { duration: 620 }),
+        withTiming(0, { duration: 660 }),
         withTiming(1, { duration: 90 }),
-        withTiming(0, { duration: 420 }),
+        withTiming(0, { duration: 440 }),
       );
     }
   }, [throwState?.key]);
 
   const ballStyle = useAnimatedStyle(() => {
-    const magnetCurve = isMagnet
-      ? Math.sin(prog.value * Math.PI) * spreadUnit * 0.6
-      : 0;
-    const tx = interpolate(prog.value, [0, 1], [startX, targetX]) - magnetCurve;
-    const ty = interpolate(prog.value, [0, 1], [startY, targetY]);
-    const opacity = interpolate(prog.value, [0, 0.82, 1], [1, 1, 0]);
+    const p = prog.value;
+    const curve = isMagnet ? Math.sin(p * Math.PI) * nearHalf * 0.35 : 0;
+    const tx = interpolate(p, [0, 1], [startP.x, endP.x]) - curve;
+    const ty = interpolate(p, [0, 1], [startP.y, endP.y]);
+    const sc =
+      interpolate(p, [0, 1], [startP.scale, endP.scale]) * (isGiant ? 1.7 : 1);
+    const size = baseBall * sc;
+    const opacity = interpolate(p, [0, 0.85, 1], [1, 1, 0]);
     return {
       opacity,
-      transform: [{ translateX: tx - ballSize / 2 }, { translateY: ty - ballSize / 2 }],
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      transform: [{ translateX: tx - size / 2 }, { translateY: ty - size / 2 }],
     };
   });
 
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
   const explosionStyle = useAnimatedStyle(() => ({
     opacity: flash.value,
-    transform: [{ scale: 0.4 + flash.value * 1.6 }],
+    transform: [{ scale: 0.3 + flash.value * 1.8 }],
   }));
 
-  const ballColor = BALL_COLORS[throwState?.powerup ?? "none"];
+  const ballGrad = BALL_COLORS[throwState?.powerup ?? "none"];
+
+  // trapezoid helper values
+  const gutterTop = pinDeckY;
+  const laneH = nearY - pinDeckY;
+  const woodSide = nearHalf - farHalf;
+  const bedSide = nearHalf + gutter - (farHalf + gutter * 0.5);
+
+  const arrows = [-0.55, -0.2, 0.2, 0.55];
 
   return (
     <View style={styles.container} onLayout={onLayout}>
-      <LinearGradient
-        colors={["#FFE9A8", "#FFF9F0"]}
-        style={StyleSheet.absoluteFill}
-      />
+      {/* dark alley background */}
+      <LinearGradient colors={["#0b0b0f", "#17171c", "#0b0b0f"]} style={StyleSheet.absoluteFill} />
+      {/* back wall + pin pit */}
       {w > 0 && (
         <>
-          {/* Lane */}
+          <LinearGradient
+            colors={["#1c1c24", "#101016"]}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, height: pinDeckY + 6 }}
+          />
           <View
-            style={[
-              styles.lane,
-              { left: laneLeft, width: laneW, top: pinTop - 12, bottom: 0 },
+            style={{
+              position: "absolute",
+              top: h * 0.2,
+              left: w * 0.12,
+              right: w * 0.12,
+              height: 2,
+              backgroundColor: "rgba(255,204,0,0.35)",
+              borderRadius: 2,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              top: pinDeckY - h * 0.11,
+              left: centerX - farHalf - 8,
+              width: farHalf * 2 + 16,
+              height: h * 0.12,
+              backgroundColor: "#040405",
+              borderTopLeftRadius: 10,
+              borderTopRightRadius: 10,
+            }}
+          />
+          <LinearGradient
+            colors={["rgba(255,230,170,0.14)", "transparent"]}
+            style={{
+              position: "absolute",
+              top: pinDeckY - h * 0.06,
+              left: centerX - farHalf - 20,
+              width: farHalf * 2 + 40,
+              height: h * 0.14,
+            }}
+            pointerEvents="none"
+          />
+        </>
+      )}
+
+      {w > 0 && (
+        <>
+          {/* gutter bed (dark, slightly wider) */}
+          <View
+            style={{
+              position: "absolute",
+              top: gutterTop,
+              left: centerX - (farHalf + gutter * 0.5) - bedSide,
+              width: (farHalf + gutter * 0.5) * 2,
+              height: 0,
+              borderBottomWidth: laneH,
+              borderBottomColor: "#050506",
+              borderLeftWidth: bedSide,
+              borderRightWidth: bedSide,
+              borderLeftColor: "transparent",
+              borderRightColor: "transparent",
+            }}
+          />
+
+          {/* wood lane trapezoid */}
+          <View
+            style={{
+              position: "absolute",
+              top: gutterTop,
+              left: centerX - farHalf - woodSide,
+              width: farHalf * 2,
+              height: 0,
+              borderBottomWidth: laneH,
+              borderBottomColor: "#D9B57A",
+              borderLeftWidth: woodSide,
+              borderRightWidth: woodSide,
+              borderLeftColor: "transparent",
+              borderRightColor: "transparent",
+            }}
+          />
+          {/* wood shading + sheen overlay (rectangle, corners fade into dark) */}
+          <LinearGradient
+            colors={[
+              "rgba(20,12,4,0.6)",
+              "rgba(120,90,50,0.15)",
+              "rgba(255,240,220,0.0)",
+              "rgba(255,250,240,0.22)",
             ]}
-          >
-            <LinearGradient
-              colors={[colors.woodDark, colors.wood]}
-              style={StyleSheet.absoluteFill}
+            locations={[0, 0.35, 0.7, 1]}
+            style={{
+              position: "absolute",
+              top: pinDeckY,
+              left: centerX - nearHalf,
+              width: nearHalf * 2,
+              height: laneH,
+            }}
+            pointerEvents="none"
+          />
+          {/* wood plank lines */}
+          {[0.5].map((_, i) => (
+            <View
+              key={i}
+              style={{
+                position: "absolute",
+                top: pinDeckY,
+                bottom: 0,
+                left: centerX - 0.5,
+                width: 1,
+                backgroundColor: "rgba(120,80,40,0.12)",
+              }}
             />
-            {/* aiming arrows */}
-            {[-0.9, -0.3, 0.3, 0.9].map((ax, i) => (
+          ))}
+
+          {/* aiming arrows */}
+          {arrows.map((ax, i) => {
+            const pp = project(ax, 0.42);
+            const s = pp.scale;
+            return (
               <View
                 key={i}
-                style={[
-                  styles.arrow,
-                  {
-                    left: laneW / 2 + ax * spreadUnit - 5,
-                    bottom: h * 0.28,
-                  },
-                ]}
+                style={{
+                  position: "absolute",
+                  left: pp.x - 6 * s,
+                  top: pp.y,
+                  width: 0,
+                  height: 0,
+                  borderLeftWidth: 6 * s,
+                  borderRightWidth: 6 * s,
+                  borderBottomWidth: 14 * s,
+                  borderLeftColor: "transparent",
+                  borderRightColor: "transparent",
+                  borderBottomColor: "rgba(210,120,40,0.55)",
+                }}
               />
-            ))}
-          </View>
-          {/* gutters */}
-          <View style={[styles.gutter, { left: laneLeft - 10, top: pinTop - 12 }]} />
-          <View style={[styles.gutter, { left: laneLeft + laneW + 2, top: pinTop - 12 }]} />
+            );
+          })}
 
           {/* Pins */}
           {Object.entries(PINS).map(([idStr, p]) => {
             const id = Number(idStr);
-            const { cx, cy, size } = pinPos(p.x, p.row);
-            return <Pin key={id} up={standing.includes(id)} cx={cx} cy={cy} size={size} />;
+            const pp = project(p.x * PIN_X, pinT(p.row));
+            return (
+              <Pin key={id} up={standing.includes(id)} cx={pp.x} cy={pp.y} scale={pp.scale} />
+            );
           })}
 
-          {/* explosion for bomb / laser */}
+          {/* explosion / laser burst */}
           <Animated.View
             pointerEvents="none"
             style={[
               styles.explosion,
               {
-                left: targetX - 60,
-                top: targetY - 60,
+                left: endP.x - 55,
+                top: endP.y - 70,
                 backgroundColor:
-                  effect === "bomb" ? "rgba(255,45,85,0.55)" : "rgba(255,214,10,0.6)",
+                  effect === "bomb" ? "rgba(255,90,40,0.6)" : "rgba(255,220,60,0.7)",
               },
               explosionStyle,
             ]}
@@ -221,30 +343,21 @@ export default function BowlingLane({ standing, throwState, onArrive }: Props) {
 
           {/* ball */}
           {throwState && (
-            <Animated.View
-              style={[
-                styles.ball,
-                {
-                  width: ballSize,
-                  height: ballSize,
-                  borderRadius: ballSize / 2,
-                  backgroundColor: ballColor,
-                },
-                ballStyle,
-              ]}
-            >
+            <Animated.View style={[styles.ball, ballStyle]}>
+              <LinearGradient
+                colors={ballGrad}
+                start={{ x: 0.3, y: 0.1 }}
+                end={{ x: 0.7, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
               <View style={styles.ballShine} />
             </Animated.View>
           )}
 
-          {/* lightning flash overlay */}
+          {/* lightning flash */}
           <Animated.View
             pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: colors.brandTertiary },
-              flashStyle,
-            ]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: "#FFF06A" }, flashStyle]}
           />
         </>
       )}
@@ -253,66 +366,55 @@ export default function BowlingLane({ standing, throwState, onArrive }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, overflow: "hidden" },
-  lane: {
+  container: { flex: 1, overflow: "hidden", backgroundColor: "#0b0b0f" },
+  pinWrap: { position: "absolute", alignItems: "center", justifyContent: "flex-end" },
+  pinBody: {
     position: "absolute",
-    borderLeftWidth: 2,
-    borderRightWidth: 2,
-    borderColor: "#C9B98A",
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 40,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E2E2",
     overflow: "hidden",
   },
-  gutter: {
+  pinStripe: {
     position: "absolute",
-    width: 8,
-    bottom: 0,
-    backgroundColor: colors.gutter,
-    borderRadius: radius.sm,
+    left: 0,
+    right: 0,
+    height: 5,
+    backgroundColor: "#E8203A",
   },
-  arrow: {
+  pinHead: {
     position: "absolute",
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderBottomWidth: 12,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: colors.brandPrimary,
-    opacity: 0.5,
-  },
-  pin: {
-    position: "absolute",
+    top: -2,
     backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: colors.borderStrong,
-    alignItems: "center",
-  },
-  pinNeck: {
-    position: "absolute",
-    width: "70%",
-    backgroundColor: colors.brandPrimary,
-    borderRadius: 2,
+    borderRadius: 40,
   },
   ball: {
     position: "absolute",
-    borderWidth: 2,
-    borderColor: colors.borderStrong,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
   ballShine: {
     position: "absolute",
-    top: 5,
-    left: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    top: "16%",
+    left: "20%",
+    width: "26%",
+    height: "26%",
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.75)",
   },
   explosion: {
     position: "absolute",
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
   },
 });
