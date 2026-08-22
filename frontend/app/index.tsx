@@ -1,0 +1,188 @@
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Dimensions,
+} from "react-native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
+
+import PrimaryButton from "@/src/components/PrimaryButton";
+import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
+import { ensurePlayer, getName } from "@/src/store/player";
+
+const HERO =
+  "https://images.unsplash.com/photo-1763819527452-f01bfb155013?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwzfHwzZCUyMGNhcnRvb24lMjBib3dsaW5nJTIwYWxsZXklMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85";
+
+export default function Home() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [name, setName] = useState("Bowler");
+
+  useEffect(() => {
+    ensurePlayer()
+      .then((p) => setName(p.name))
+      .catch(() => {});
+    getName().then((n) => n && setName(n));
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.heroWrap}>
+        <Image source={{ uri: HERO }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        <LinearGradient
+          colors={["rgba(255,249,240,0)", "rgba(28,28,30,0.15)", colors.surface]}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
+          <View style={styles.pill}>
+            <Ionicons name="person-circle" size={18} color={colors.onSurface} />
+            <Text style={styles.pillText} numberOfLines={1}>
+              {name}
+            </Text>
+          </View>
+          <Pressable
+            testID="leaderboard-icon-button"
+            onPress={() => router.push("/leaderboard")}
+            style={styles.pill}
+          >
+            <Ionicons name="trophy" size={18} color={colors.brandPrimary} />
+          </Pressable>
+        </View>
+
+        <Animated.View
+          entering={FadeInDown.duration(500)}
+          style={styles.titleWrap}
+        >
+          <Text style={styles.titleSmall}>SUPER</Text>
+          <Text style={styles.titleBig}>STRIKE</Text>
+          <Text style={styles.tagline}>Power up. Knock 'em all down.</Text>
+        </Animated.View>
+      </View>
+
+      <View style={[styles.menu, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <Animated.View entering={FadeInDown.delay(100)}>
+          <PrimaryButton
+            testID="mode-solo-button"
+            label="Solo Play"
+            icon="game-controller"
+            variant="primary"
+            onPress={() => router.push("/game?mode=solo")}
+          />
+        </Animated.View>
+        <Animated.View entering={FadeInDown.delay(180)}>
+          <PrimaryButton
+            testID="mode-cpu-button"
+            label="Vs CPU"
+            icon="hardware-chip"
+            variant="dark"
+            onPress={() => router.push("/game?mode=cpu")}
+          />
+        </Animated.View>
+        <Animated.View entering={FadeInDown.delay(260)}>
+          <PrimaryButton
+            testID="mode-multiplayer-button"
+            label="Multiplayer"
+            icon="people"
+            variant="secondary"
+            onPress={() => router.push("/multiplayer")}
+          />
+        </Animated.View>
+        <Animated.View entering={FadeInDown.delay(340)} style={styles.secondaryRow}>
+          <Pressable
+            testID="nav-leaderboard-button"
+            style={styles.smallBtn}
+            onPress={() => router.push("/leaderboard")}
+          >
+            <Ionicons name="trophy-outline" size={18} color={colors.onSurface} />
+            <Text style={styles.smallBtnText}>Leaderboard</Text>
+          </Pressable>
+          <Pressable
+            testID="nav-profile-button"
+            style={styles.smallBtn}
+            onPress={() => router.push("/profile")}
+          >
+            <Ionicons name="stats-chart-outline" size={18} color={colors.onSurface} />
+            <Text style={styles.smallBtnText}>My Stats</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
+
+const { height } = Dimensions.get("window");
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
+  heroWrap: { height: height * 0.5 },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+  },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.surfaceSecondary,
+    paddingHorizontal: spacing.md,
+    height: 36,
+    borderRadius: radius.pill,
+    maxWidth: 180,
+    ...shadow.card,
+  },
+  pillText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  titleWrap: {
+    position: "absolute",
+    bottom: spacing.lg,
+    left: spacing.xl,
+  },
+  titleSmall: {
+    fontFamily: font.display,
+    fontSize: type.xl,
+    color: colors.brandPrimary,
+    letterSpacing: 2,
+  },
+  titleBig: {
+    fontFamily: font.display,
+    fontSize: type["4xl"],
+    color: colors.onSurface,
+    lineHeight: type["4xl"] + 4,
+  },
+  tagline: {
+    fontFamily: font.text,
+    fontSize: type.lg,
+    color: colors.onSurfaceSecondary,
+    marginTop: spacing.xs,
+  },
+  menu: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    gap: spacing.md,
+    justifyContent: "center",
+  },
+  secondaryRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.xs },
+  smallBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  smallBtnText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+});

@@ -1,0 +1,189 @@
+{
+  "app_name": "Super Strike",
+  "personality": "4 Tactile / Playful LIGHT",
+  "personality_one_liner": "A high-energy, touchable arcade experience with chunky shapes, vibrant colors, and dynamic physical interactions.",
+  "color": {
+    "light": {
+      "surface": "#FFF9F0",
+      "onSurface": "#1A1A1A",
+      "surfaceSecondary": "#FFFFFF",
+      "onSurfaceSecondary": "#1A1A1A",
+      "surfaceTertiary": "#F0E8D9",
+      "onSurfaceTertiary": "#1A1A1A",
+      "surfaceInverse": "#1C1C1E",
+      "onSurfaceInverse": "#FFFFFF",
+      "brand": "#FFCC00",
+      "brandPrimary": "#FF2D55",
+      "onBrandPrimary": "#FFFFFF",
+      "brandSecondary": "#34C759",
+      "onBrandSecondary": "#1A1A1A",
+      "brandTertiary": "#FFD60A",
+      "onBrandTertiary": "#1A1A1A",
+      "success": "#34C759",
+      "onSuccess": "#FFFFFF",
+      "warning": "#FFCC00",
+      "onWarning": "#1A1A1A",
+      "error": "#FF2D55",
+      "onError": "#FFFFFF",
+      "info": "#1A1A1A",
+      "onInfo": "#FFFFFF",
+      "border": "#E5DCCF",
+      "borderStrong": "#1A1A1A",
+      "divider": "#E5DCCF"
+    },
+    "dark": {
+      "surface": "#121212",
+      "onSurface": "#F5F5F5",
+      "surfaceSecondary": "#1C1C1E",
+      "onSurfaceSecondary": "#F5F5F5",
+      "surfaceTertiary": "#2C2C2E",
+      "onSurfaceTertiary": "#F5F5F5",
+      "surfaceInverse": "#FFF9F0",
+      "onSurfaceInverse": "#1A1A1A",
+      "brand": "#FFCC00",
+      "brandPrimary": "#FF375F",
+      "onBrandPrimary": "#FFFFFF",
+      "brandSecondary": "#30D158",
+      "onBrandSecondary": "#1A1A1A",
+      "brandTertiary": "#FFD60A",
+      "onBrandTertiary": "#1A1A1A",
+      "success": "#30D158",
+      "onSuccess": "#FFFFFF",
+      "warning": "#FFD60A",
+      "onWarning": "#1A1A1A",
+      "error": "#FF375F",
+      "onError": "#FFFFFF",
+      "info": "#F5F5F5",
+      "onInfo": "#121212",
+      "border": "#38383A",
+      "borderStrong": "#F5F5F5",
+      "divider": "#38383A"
+    }
+  },
+  "typography": {
+    "displayFontFamily": "Fredoka",
+    "textFontFamily": "Nunito",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous, playable spacing. Keep controls anchored to thumb zones and avoid dense UI clusters. Every interactive element gets ample padding.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 2,
+  "navigation": "stack_only",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Top-anchored 10-frame scorecard overlay during gameplay.",
+      "Bottom floating power-up tray.",
+      "Multiplayer room joining modal over the lane background."
+    ],
+    "dont's": [
+      "Do not use on primary CTAs (keep them solid and tactile).",
+      "Do not use on input fields or small metric chips."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "haptics": {
+    "button_press": "light",
+    "meter_stop": "medium",
+    "power_up_earned": "success",
+    "strike_hit": "heavy",
+    "multiplayer_joined": "success"
+  },
+  "screens": [
+    {
+      "name": "Home / Mode Select",
+      "purpose": "Launch players into action via high-contrast, chunky tactile buttons.",
+      "states": {
+        "loading": "Centered bouncing bowling ball animation.",
+        "empty": "N/A - static menu.",
+        "error": "Failed to load network states - show Retry button in brandPrimary."
+      },
+      "layout": "Hero graphic (bowling alley background) top 40% with a vertical linear gradient scrim (transparent to surfaceInverse). Below the scrim, a vertical stack of large pill-shaped buttons (Solo, Vs CPU, Multiplayer) filling the width with 'lg' horizontal padding. Safe-area clearance at the bottom."
+    },
+    {
+      "name": "Gameplay HUD",
+      "purpose": "Command center for timing throws and activating power-ups without obstructing the 3D lane view.",
+      "states": {
+        "loading": "Overlay spinner.",
+        "empty": "N/A.",
+        "error": "Connection lost (Multiplayer) - full screen modal with Retry."
+      },
+      "layout": "Split-screen ergonomics. The left side (thumb zone) holds a vertical Aim Slider. The right side holds a large circular Power Tap area. Top edge: Glassmorphic 10-frame scorecard pinned safely below the notch. Bottom edge: Floating glassmorphic Power-up tray containing rounded icon containers for earned powers and a lime-green (brandSecondary) circular energy meter."
+    },
+    {
+      "name": "Multiplayer Lobby",
+      "purpose": "Frictionless entry to peer-to-peer matches via room codes.",
+      "states": {
+        "loading": "Validating code - skeleton on room card.",
+        "empty": "No room joined - show illustration of empty lane + 'Enter Code'.",
+        "error": "Invalid code - shake animation on input + red helper text."
+      },
+      "layout": "Top 1/3 holds a large 5-6 digit alphanumeric code input. Below it, a scrollable room preview card (glassmorphic over background) listing Host and Player list with ready-status indicators. A sticky 'Join Match' CTA sits at the bottom inside a KeyboardAvoidingView to remain reachable."
+    },
+    {
+      "name": "Post-Game Results",
+      "purpose": "Celebrate wins and cleanly visualize the final 10-frame breakdown.",
+      "states": {
+        "loading": "Calculating scores...",
+        "empty": "N/A",
+        "error": "Failed to post score to leaderboard - Retry button."
+      },
+      "layout": "Large celebratory typography at the top ('ULTRA STRIKE WIN!'). Centered 3D trophy graphic. Below, a high-contrast stats card showing final scores and accuracy. A sticky 'Play Again' button anchored to the bottom safe area."
+    }
+  ],
+  "images": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1763819527452-f01bfb155013?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwzfHwzZCUyMGNhcnRvb24lMjBib3dsaW5nJTIwYWxsZXklMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Colorful geometric bowling alley background"
+    },
+    "gameplay_action": {
+      "url": "https://images.pexels.com/photos/5952901/pexels-photo-5952901.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Illuminated bowling pins ready for action"
+    },
+    "trophy_graphic": {
+      "url": "https://images.unsplash.com/photo-1578269174936-2709b6aeb913?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHx0cm9waHklMjBjYXJ0b29uJTIwd2lubmVyfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Winner trophy"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the Tactile / Playful LIGHT personality. Ensure buttons are chunky (pill or lg radius) and cast a shadow (tier 2).",
+    "Banned Colors Compliance: There is absolutely no blue, indigo, violet, orange, or terracotta in this palette. Accent colors are strictly Yellow, Red (brandPrimary), and Lime Green (brandSecondary).",
+    "For the Gameplay HUD, map controls to Fitts's Law principles. The Aim slider and Power tap zone must sit at the extreme left and right edges in the lower half of the screen for optimal thumb reach.",
+    "The 10-frame scorecard and power-up tray must be elevated using glassmorphism (expo-glass-effect or expo-blur) so they don't visually block the bowling lane environment entirely.",
+    "Ensure the Multiplayer lobby code input sits above the fold and works seamlessly with the keyboard, utilizing KeyboardAvoidingView.",
+    "Typography must stick to max weight 500. Hierarchy is achieved through size scaling (Fredoka for Display, Nunito for text) rather than heavy font weights.",
+    "Always apply a vertical gradient scrim (transparent to surfaceInverse) beneath text overlays sitting on hero images or gameplay backgrounds to guarantee WCAG contrast."
+  ]
+}
