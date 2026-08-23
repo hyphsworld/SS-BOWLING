@@ -12,6 +12,7 @@ import PowerUpTray from "@/src/components/PowerUpTray";
 import TimingMeters from "@/src/components/TimingMeters";
 import Glass from "@/src/components/Glass";
 import Celebration from "@/src/components/Celebration";
+import SoundToggle from "@/src/components/SoundToggle";
 import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { POWERUPS, PowerUpId } from "@/src/game/powerups";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/src/game/engine";
 import { api } from "@/src/api/client";
 import { ensurePlayer } from "@/src/store/player";
+import { playSound, stopSound } from "@/src/audio/sounds";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -85,8 +87,14 @@ export default function Game() {
     else if (res.knockedCount === 0) text = "GUTTER";
     if (text) {
       setBanner(text);
-      if (res.isStrike)
+      if (res.isStrike) {
+        playSound("strike");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } else if (res.isSpare) {
+        playSound("spare");
+      } else {
+        playSound("gutter");
+      }
       setTimeout(() => setBanner(null), 1100);
     }
   };
@@ -134,6 +142,8 @@ export default function Game() {
     const res = applyThrow(g, p.aim, p.power, p.pu);
     pending.current = null;
     setArmed(null);
+    stopSound("ball_roll");
+    if (res.knockedCount > 0) playSound("pin_crash");
     showBanner(res);
     force();
     if (p.owner === "me") {
@@ -149,6 +159,8 @@ export default function Game() {
   const triggerThrow = (owner: Owner, aim: number, power: number, pu: PowerUpId | null) => {
     throwKey.current += 1;
     pending.current = { owner, aim, power, pu };
+    if (pu) playSound("powerup");
+    playSound("ball_roll");
     setThrowState({ key: throwKey.current, aim, powerup: pu });
   };
 
@@ -343,6 +355,7 @@ export default function Game() {
           <View style={styles.frameBadge}>
             <Text style={styles.frameBadgeText}>F{displayFrame}</Text>
           </View>
+          <SoundToggle color="#fff" bg="rgba(24,24,30,0.82)" />
         </View>
         <View style={styles.scorecardPanel}>
           <Scorecard
@@ -359,7 +372,7 @@ export default function Game() {
 
       {/* Bottom controls */}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing.sm }]}>
-        <Glass style={styles.controlPanel} intensity={45}>
+        <Glass style={styles.controlPanel} intensity={45} tint="dark">
           <View style={styles.panelInner}>
             {phase === "cpu" && (
               <Animated.View entering={FadeIn} style={styles.statusRow}>
@@ -405,7 +418,7 @@ export default function Game() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0b0b0f" },
+  container: { flex: 1, backgroundColor: "#02040d" },
   topHud: {
     position: "absolute",
     left: spacing.md,
@@ -465,7 +478,7 @@ const styles = StyleSheet.create({
     right: spacing.md,
     bottom: 0,
   },
-  controlPanel: { borderRadius: radius.lg },
+  controlPanel: { borderRadius: radius.lg, borderWidth: 1, borderColor: "rgba(34,225,255,0.35)" },
   panelInner: { padding: spacing.md, gap: spacing.md },
   statusRow: {
     flexDirection: "row",
@@ -474,5 +487,5 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
-  statusText: { fontFamily: font.display, fontSize: type.lg, color: colors.onSurface },
+  statusText: { fontFamily: font.display, fontSize: type.lg, color: "#EAF7FF" },
 });

@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
+import { initAudio } from "@/src/audio/sounds";
 
 // Disable logbox errors etc so that users can see the app
 // and agent works as expected.
@@ -32,6 +33,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [ready]);
+
+  useEffect(() => {
+    initAudio();
+  }, []);
 
   // If the CDN is unreachable we fall through on error rather than wedging
   // the app — icons will tofu, but the app still boots.

@@ -12,6 +12,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { colors, font, radius, spacing, type } from "@/src/theme/theme";
 import { POCKET_X, AIM_SCALE } from "@/src/game/engine";
+import { playSound } from "@/src/audio/sounds";
 
 type Phase = "aim" | "power" | "idle";
 
@@ -46,6 +47,7 @@ export default function TimingMeters({ phase, onLockAim, onLockPower }: Props) {
 
   const handleLock = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    playSound("lock");
     const v = sweep.value;
     if (phase === "aim") onLockAim(v * 2 - 1);
     else onLockPower(v);
@@ -108,15 +110,15 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: font.display,
     fontSize: type.base,
-    color: colors.onSurface,
+    color: "#EAF7FF",
     textAlign: "center",
   },
   track: {
     height: 26,
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceTertiary,
+    backgroundColor: "rgba(2,8,24,0.85)",
     borderWidth: 2,
-    borderColor: colors.borderStrong,
+    borderColor: "rgba(34,225,255,0.5)",
     justifyContent: "center",
     overflow: "hidden",
   },
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
     bottom: 2,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: "#EAF7FF",
   },
   btn: {
     height: 56,
@@ -142,7 +144,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: colors.borderStrong,
+    borderColor: "rgba(255,255,255,0.5)",
   },
   btnText: { fontFamily: font.display, fontSize: type.xl },
 });

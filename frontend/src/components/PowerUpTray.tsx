@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, font, radius, spacing, type } from "@/src/theme/theme";
 import { POWERUPS, PowerUpId } from "@/src/game/powerups";
+import { playSound } from "@/src/audio/sounds";
 
 interface Props {
   energy: number; // 0..100
@@ -40,10 +41,13 @@ export default function PowerUpTray({ energy, armed, onArm, disabled }: Props) {
               key={p.id}
               testID={`powerup-${p.id}`}
               disabled={disabled || (!affordable && !isArmed)}
-              onPress={() => onArm(isArmed ? null : p.id)}
+              onPress={() => {
+                playSound("tap");
+                onArm(isArmed ? null : p.id);
+              }}
               style={[
                 styles.chip,
-                { borderColor: isArmed ? p.color : colors.border },
+                { borderColor: isArmed ? p.color : "rgba(34,225,255,0.3)" },
                 isArmed && { backgroundColor: p.color },
                 !affordable && !isArmed && styles.chipDisabled,
               ]}
@@ -65,7 +69,7 @@ export default function PowerUpTray({ energy, armed, onArm, disabled }: Props) {
                 <Ionicons
                   name="flash"
                   size={9}
-                  color={isArmed ? (p.id === "bomb" ? "#fff" : colors.onSurface) : colors.onSurfaceSecondary}
+                  color={isArmed ? (p.id === "bomb" ? "#fff" : colors.onSurface) : "rgba(234,247,255,0.7)"}
                 />
                 <Text
                   style={[
@@ -91,14 +95,16 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 10,
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceTertiary,
+    backgroundColor: "rgba(2,8,24,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(34,225,255,0.25)",
     overflow: "hidden",
   },
   energyFill: { height: "100%", borderRadius: radius.pill },
   energyText: {
     fontFamily: font.display,
     fontSize: type.sm,
-    color: colors.onSurface,
+    color: "#EAF7FF",
     width: 26,
     textAlign: "right",
   },
@@ -108,18 +114,18 @@ const styles = StyleSheet.create({
     height: 66,
     borderRadius: radius.md,
     borderWidth: 2,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: "rgba(6,14,40,0.85)",
     alignItems: "center",
     justifyContent: "center",
     gap: 1,
     flexShrink: 0,
   },
   chipDisabled: { opacity: 0.4 },
-  chipLabel: { fontFamily: font.display, fontSize: 11, color: colors.onSurface },
+  chipLabel: { fontFamily: font.display, fontSize: 11, color: "#EAF7FF" },
   costRow: { flexDirection: "row", alignItems: "center", gap: 1 },
   costText: {
     fontFamily: font.text,
     fontSize: 9,
-    color: colors.onSurfaceSecondary,
+    color: "rgba(234,247,255,0.7)",
   },
 });

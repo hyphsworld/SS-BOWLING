@@ -1,0 +1,57 @@
+{
+  "summary": "Re-verified Super Strike after audio + futuristic lane rewrite. Backend: 12/12 pytest tests PASS (players, scores, leaderboard sorted desc with no _id, player stats aggregation, rooms create/get/join/progress incl. tie, 404 on missing room, 400 on 3rd join, idempotent re-join). Frontend @ 390x844: Home renders with SoundToggle in top bar; sound-toggle-button tap toggles icon (mute/volume-high) with no crash. Solo Play flow completes 10 frames via lock-aim-button -> throw-button, one power-up (magnet) armed & thrown mid-game triggered its neon particle / curve effect without runtime errors, routes to Results (FINAL SCORE 45, play-again-button/home-button work, Play Again reloads a fresh game). Vs CPU flow: player throws register, CPU turn is entered (status 'CPU is bowling…' observed), YOU/CPU scores update in HUD (YOU 20 / CPU 40 by F5) and scorecard renders per-frame values. The new futuristic neon 3D lane (BowlingLane.tsx) renders correctly: perspective grid rungs, cyan neon edges, back-wall glow, aiming chevrons, pins with neon halos, and shockwave/explosion/particle FX layers are all present. expo-audio import + initAudio() in _layout.tsx does NOT break boot -- zero pageerrors and zero console errors during full solo+cpu playthroughs. Regression: identical shadow*/textShadow*/pointerEvents deprecation warnings from RN Web and same Fredoka.ttf decode warning as iteration 1 -- no new issues introduced by this session's changes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SoundToggle (Expo Router stack)",
+        "issue": "When navigating from Home -> Game (or Home -> anywhere), the previous screen remains mounted in the DOM on web, so [data-testid=\"sound-toggle-button\"] resolves to TWO elements (the hidden home one + the visible in-game one). Only the visible one is interactive; force=True click on the first (hidden) throws 'Element is not visible'. Same behavior applies to other testIDs that appear on multiple screens. Non-blocking for real mobile (Expo Router web quirk) but scripts must use .last / :visible selectors.",
+        "testID": "sound-toggle-button",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "All screens (pre-existing)",
+        "issues": [
+          "Fredoka.ttf still fails to decode on web ('OTS parsing error: invalid sfntVersion: 168430090'), text falls back to system font. Same as iteration 1, not caused by this session.",
+          "React Native Web deprecation warnings: shadow* -> boxShadow, textShadow* -> textShadow, props.pointerEvents -> style.pointerEvents. Same as iteration 1."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_super_strike_api.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: If the main agent wants automated tests to use plain [data-testid=...] selectors, ensure only the active Expo Router screen renders SoundToggle (e.g. render it once at layout level or guard by useIsFocused). Currently both Home's and Game's SoundToggle are in the DOM simultaneously.",
+    "OPTIONAL (carried from iter 1, still unresolved): replace assets/fonts/Fredoka.ttf with a valid TTF; migrate shadow*/textShadow*/pointerEvents to their non-deprecated equivalents.",
+    "No blocking issues -- all requested features work without crashes."
+  ],
+  "critical_code_review_comments": [
+    "sounds.ts: initAudio() is idempotent (guarded by `initialized`), correctly awaits setAudioModeAsync, and swallows expo-audio create/play errors in try/catch so the app boots on web (where expo-audio is a no-op / limited). Good.",
+    "sounds.ts: mute state is persisted via storage util and broadcast via subscribeMuted listeners -- SoundToggle stays in sync. Good.",
+    "game.tsx: stopSound('ball_roll') is called on ball arrival before playing pin_crash; playSound('powerup') fires only when a power-up is armed. Good.",
+    "BowlingLane.tsx: heavy component (~750 lines) with many absolute-positioned neon layers and reanimated shared values. Consider extracting Pin, Particles, and the static lane geometry (rungs / edges / gutters / pit) into subcomponents to reduce re-render cost. Non-blocking.",
+    "BowlingLane.tsx uses `runOnJS(onArrive)()` in withTiming callback which is correct.",
+    "SoundToggle renders on both index.tsx and game.tsx with the same testID -- see UI bug above.",
+    "Backend server.py unchanged this session; still cleanly excludes _id via clean() and uses env vars for MONGO_URL/DB_NAME."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Added a few more auto-generated Bowler#### players + solo/vs-cpu scores while playing through the UI (final scores 45, 71-ish). TEST_* documents from iteration 1 still present.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 12 pytest backend tests remain green -- run `pytest /app/backend/tests/ -v`. For frontend, the SoundToggle testID exists on multiple screens simultaneously in Expo Router web preview; use `.locator('[data-testid=...]').last` or a screen-scoped selector. Solo game auto-loop: click [data-testid=lock-aim-button] then [data-testid=throw-button] with ~500ms and ~1600ms sleeps respectively; ~60 iterations completes 10 frames. Vs CPU: same but expect 'CPU is bowling…' idle periods -- just page.wait_for_timeout(1200-1500) when neither lock nor throw is present. New neon lane renders fine on web (no crash) and no runtime errors from expo-audio.",
+  "rca_of_issue": "N/A -- no functional bugs found this iteration. The only reproducible test-script friction is duplicate testIDs across mounted Expo Router screens on web (see SoundToggle UI bug); workaround documented above."
+}

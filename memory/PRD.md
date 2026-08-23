@@ -55,3 +55,21 @@ to cause strikes. Reference: Baseball Simulator 1000 ("Ultra" plays).
 
 ## Next Tasks
 - Gather user feedback on difficulty tuning of the knockdown model.
+
+## Implemented (2026-08-23, forked session)
+- **Arcade sound effects** (`expo-audio`): synthesized WAV SFX in `assets/sounds/`
+  (ball roll, pin crash, strike, spare, gutter, power-up zap, lock blip, tap, win).
+  Sound manager `src/audio/sounds.ts` (imperative players, preloaded, mute persisted
+  to AsyncStorage). Wired into throws, impacts, celebration, meter locks, power-up
+  arming, and results. Global init in `_layout.tsx`.
+- **Sound on/off toggle** (`src/components/SoundToggle.tsx`) on home top bar + game HUD.
+- **Futuristic neon 3D lane** (rewrote `BowlingLane.tsx`): deep-space gradient, neon
+  cyan lane edges (rotated glow lines), perspective floor-grid rungs, glowing horizon,
+  back-wall grid accents, neon-haloed pins (cyan/purple stripes), energy-core glowing
+  ball with motion-trail echo.
+- **Advanced power-up FX**: particle burst on impact (count/spread scale by power-up),
+  shockwave ring, explosion core, magnet field rings orbiting the ball, faster
+  throw + trail for muscle, colored flash for bomb/laser.
+- **Cohesive dark HUD**: dark/neon restyle of control panel, TimingMeters, PowerUpTray.
+- Verified: testing agent iteration 2 — backend 12/12, solo + vs-cpu + results flows
+  pass, no runtime regressions from audio/lane changes.

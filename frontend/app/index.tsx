@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import PrimaryButton from "@/src/components/PrimaryButton";
+import SoundToggle from "@/src/components/SoundToggle";
 import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { ensurePlayer, getName } from "@/src/store/player";
 
@@ -48,13 +49,16 @@ export default function Home() {
               {name}
             </Text>
           </View>
-          <Pressable
-            testID="leaderboard-icon-button"
-            onPress={() => router.push("/leaderboard")}
-            style={styles.pill}
-          >
-            <Ionicons name="trophy" size={18} color={colors.brandPrimary} />
-          </Pressable>
+          <View style={styles.topRight}>
+            <Pressable
+              testID="leaderboard-icon-button"
+              onPress={() => router.push("/leaderboard")}
+              style={styles.pill}
+            >
+              <Ionicons name="trophy" size={18} color={colors.brandPrimary} />
+            </Pressable>
+            <SoundToggle />
+          </View>
         </View>
 
         <Animated.View
@@ -141,6 +145,7 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   pillText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  topRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   titleWrap: {
     position: "absolute",
     bottom: spacing.lg,

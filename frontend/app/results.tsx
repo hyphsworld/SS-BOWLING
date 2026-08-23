@@ -10,6 +10,7 @@ import PrimaryButton from "@/src/components/PrimaryButton";
 import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { api } from "@/src/api/client";
 import { ensurePlayer } from "@/src/store/player";
+import { playSound } from "@/src/audio/sounds";
 
 const TROPHY =
   "https://images.unsplash.com/photo-1578269174936-2709b6aeb913?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHx0cm9waHklMjBjYXJ0b29uJTIwd2lubmVyfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85";
@@ -38,6 +39,8 @@ export default function Results() {
   const [submitting, setSubmitting] = useState(true);
 
   useEffect(() => {
+    const win = result === "win" || (mode === "solo" && myScore >= 150);
+    playSound(win ? "win" : "spare");
     (async () => {
       try {
         const p = await ensurePlayer();
