@@ -56,7 +56,24 @@ to cause strikes. Reference: Baseball Simulator 1000 ("Ultra" plays).
 ## Next Tasks
 - Gather user feedback on difficulty tuning of the knockdown model.
 
-## Implemented (2026-08-23, forked session)
+## Implemented (2026-08-23b) — REAL 3D engine
+- **True 3D lane** via `three.js` + `expo-gl` (GLView) — replaced the View-based
+  fake-3D `BowlingLane.tsx`. First-person camera, real perspective, fog depth.
+  - 3D neon lane (emissive edges, grid rungs, center line, 3D chevron arrows),
+    dark gutters, back wall with neon horizon + accents.
+  - 3D bowling pins (LatheGeometry profile + glowing neon rings) that physically
+    topple (axis-angle rotation, slide, spin) and pop back up on rack refill.
+  - Glowing energy-core ball (emissive + attached PointLight) that rolls down the
+    lane (rotates), scales up for Giant, curves for Magnet.
+  - GPU particle burst (THREE.Points, additive) on impact; screen flash for Bomb/Laser.
+  - Neon spotlight on pin deck; cyan/purple point lights for cyber ambiance.
+- **New `knockdown` prop** (game.tsx passes `res.knocked`) so strikes visibly
+  topple pins before the engine's instant rack-reset (HOLD window).
+- three@0.185, expo-gl@16 installed. Verified iteration 3: backend 12/12, solo +
+  vs-cpu + power-ups + results flows pass, app boots with three.js, zero JS errors.
+- Note: WebGL 3D best on a published build; validated on web preview.
+
+
 - **Arcade sound effects** (`expo-audio`): synthesized WAV SFX in `assets/sounds/`
   (ball roll, pin crash, strike, spare, gutter, power-up zap, lock blip, tap, win).
   Sound manager `src/audio/sounds.ts` (imperative players, preloaded, mute persisted

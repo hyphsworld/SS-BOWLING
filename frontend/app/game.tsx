@@ -54,6 +54,7 @@ export default function Game() {
   const [active, setActive] = useState<Owner>("me");
   const [armed, setArmed] = useState<PowerUpId | null>(null);
   const [throwState, setThrowState] = useState<ThrowState | null>(null);
+  const [knockdown, setKnockdown] = useState<{ key: number; pins: number[] } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [oppRemote, setOppRemote] = useState<{
     name: string;
@@ -142,6 +143,7 @@ export default function Game() {
     const res = applyThrow(g, p.aim, p.power, p.pu);
     pending.current = null;
     setArmed(null);
+    setKnockdown({ key: throwKey.current, pins: res.knocked });
     stopSound("ball_roll");
     if (res.knockedCount > 0) playSound("pin_crash");
     showBanner(res);
@@ -314,6 +316,7 @@ export default function Game() {
       <BowlingLane
         standing={activeGame.standing}
         throwState={throwState}
+        knockdown={knockdown}
         onArrive={onArrive}
       />
 

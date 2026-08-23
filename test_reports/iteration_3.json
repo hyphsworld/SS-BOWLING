@@ -1,0 +1,50 @@
+{
+  "summary": "Re-verified Super Strike after the fake-3D lane was replaced with a REAL 3D three.js + expo-gl (GLView) scene. Backend: 12/12 pytest tests PASS unchanged (players, scores/leaderboard sorted desc without _id, player stats aggregation, room create/get/join/progress + tie + 404/400 edge cases, idempotent re-join). Frontend @ 390x844 mobile viewport: Home boots cleanly with the heavy three.js bundle -- ONE <canvas> mounts inside game screen (GLView), no red screen, no JS exceptions. Solo Play flow: 10 frames completed via lock-aim-button -> throw-button (19 throws), scores update in the YOU pill and scorecard, routed to /results?mode=solo&myScore=84&strikes=1&spares=0; play-again-button and home-button both work. Vs CPU flow: player throws register, CPU auto-plays (status 'CPU is bowling...' visible), YOU/CPU scores both update, routed to /results?mode=cpu&myScore=87&oppScore=135&oppName=CPU&result=lose; Play Again correctly re-routes to /game?mode=cpu. Power-ups: magnet and lightning were armed and thrown mid-game without ANY runtime errors (visual FX are WebGL so DOM-level assertion not applicable per iter-2 note; flow itself is intact). Sound toggle on home and in-game does not crash. Zero page errors and zero console.error() entries across the full solo + cpu playthrough with power-ups. Only warnings observed are the pre-existing shadow*/textShadow*/pointerEvents deprecation warnings and the Fredoka.ttf decode warning -- identical to iterations 1 & 2, NOT introduced by this iteration.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "All screens (pre-existing, carried from iter 1/2)",
+        "issues": [
+          "Fredoka.ttf still fails to decode on web ('OTS parsing error: invalid sfntVersion: 168430090'); RN Web falls back to system font. Not caused by this iteration.",
+          "React Native Web deprecation warnings: shadow* -> boxShadow, textShadow* -> textShadow, props.pointerEvents -> style.pointerEvents. Present since iteration 1."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_super_strike_api.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "No blocking action items. Both requested new pieces (real 3D three.js/expo-gl lane + `knockdown` prop for toppling pins) work in web preview without JS exceptions.",
+    "OPTIONAL (carried from iter 1/2, unresolved): replace assets/fonts/Fredoka.ttf with a valid TTF; migrate remaining shadow*/textShadow*/pointerEvents style props to their non-deprecated equivalents.",
+    "OPTIONAL (perf, from iter 2): BowlingLane.tsx now imperatively drives three.js in a single onContextCreate; it is fine but the file is ~510 lines with lighting, materials, meshes, particles all inline -- consider splitting scene setup / pin factory / particle system into subhelpers for maintainability. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "BowlingLane.tsx: correctly caches ExpoWebGLRenderingContext, disposes geometries/materials + renderer + cancelAnimationFrame on unmount -- no obvious leak.",
+    "BowlingLane.tsx: uses `onArriveRef` pattern so the RAF loop can call the latest onArrive without re-registering listeners -- good.",
+    "BowlingLane.tsx: `knockdown` prop is consumed via useEffect keyed on knockdown?.key which triggers spawnParticles and updates recentlyKnockedRef -- pins visibly topple via a quaternion axis+spin animation and stay down for HOLD=1200ms, matching the requested behavior.",
+    "BowlingLane.tsx: onArrive fires via onArriveRef.current() at t>=1 -- correct hand-off back to game.tsx applyThrow.",
+    "BowlingLane.tsx: three.js WebGLRenderer is constructed with a shim `canvas` object exposing addEventListener/removeEventListener no-ops -- this is the standard expo-gl three.js pattern; works in web preview and native.",
+    "game.tsx: unchanged from iter 2 aside from the new `knockdown` state that is derived from applyThrow's res.knocked and forwarded to BowlingLane. Solo/CPU/Multiplayer paths still resolve via afterPlayerThrow.",
+    "Backend server.py: unchanged this iteration, still excludes MongoDB _id via clean(), uses env vars for MONGO_URL/DB_NAME, all endpoints return proper status codes (200/400/404)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Additional Bowler#### players + solo/cpu score records created while playing the UI (final scores 84 solo, 87 vs 135 cpu). TEST_* documents from iterations 1/2 still present.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All backend pytest tests remain green -- run `pytest /app/backend/tests/ -v` (12/12 pass in ~3s). Frontend: three.js + expo-gl now renders the lane via a single <canvas> element. Use `:visible` / `.last` selectors -- e.g. `page.locator('[data-testid=lock-aim-button]:visible').last` -- because expo-router web keeps prior screens mounted. Solo/CPU auto-loop is ~19 player throws; sleep 1600-1700ms between throw taps and 1000ms while waiting for CPU. Power-up chips (powerup-magnet/giant/muscle/bomb/lightning) can be armed before locking aim; visual FX is WebGL so DOM assertions are not meaningful -- only assert that no console.error/pageerror is emitted after arming + throwing. All previous UI bug (duplicate sound-toggle testID on Home vs Game because both screens stay mounted) still applies -- use .last.",
+  "rca_of_issue": "N/A -- no functional bugs found in this iteration. The 3D three.js integration boots and runs without JS exceptions, scoring is correct, and both Solo and Vs CPU game modes route to /results with the expected params. All backend APIs unchanged and green."
+}
