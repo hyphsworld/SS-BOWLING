@@ -99,7 +99,16 @@ export default function Home() {
             onPress={() => router.push("/multiplayer")}
           />
         </Animated.View>
-        <Animated.View entering={FadeInDown.delay(340)} style={styles.secondaryRow}>
+        <Animated.View entering={FadeInDown.delay(320)}>
+          <PrimaryButton
+            testID="ai-coach-button"
+            label="Ask Coach Luna"
+            icon="chatbubbles"
+            variant="outline"
+            onPress={() => router.push("/coach")}
+          />
+        </Animated.View>
+        <Animated.View entering={FadeInDown.delay(380)} style={styles.secondaryRow}>
           <Pressable
             testID="nav-leaderboard-button"
             style={styles.smallBtn}

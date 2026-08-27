@@ -12,6 +12,8 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,6 +21,9 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+AI_MODEL = ("openai", "gpt-5.6-luna")
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -213,6 +218,139 @@ async def update_progress(code: str, input: RoomProgress):
     room["status"] = status
     room["winner"] = winner
     return clean(room)
+
+
+# ---------- AI (GPT-5.6 Luna) ----------
+class QuipRequest(BaseModel):
+    voice: str = "commentator"  # "commentator" | "cpu"
+    event: str = "open"  # strike | spare | gutter | open
+    knocked: int = 0
+    frame: int = 1
+    opp_name: Optional[str] = None
+
+
+class CoachRequest(BaseModel):
+    score: int = 0
+    strikes: int = 0
+    spares: int = 0
+    gutters: int = 0
+    mode: str = "solo"
+    result: Optional[str] = None
+
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+    name: Optional[str] = None
+
+
+def _make_chat(session_id: str, system: str) -> LlmChat:
+    return LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=session_id,
+        system_message=system,
+    ).with_model(*AI_MODEL)
+
+
+_FALLBACK_QUIP = {
+    "strike": "Boom! Right in the pocket!",
+    "spare": "Nice clean-up on that spare!",
+    "gutter": "Ouch — the gutter strikes again!",
+    "open": "Solid roll, keep it rolling!",
+}
+
+
+@api_router.post("/ai/quip")
+async def ai_quip(req: QuipRequest):
+    if req.voice == "cpu":
+        system = (
+            "You are the CPU rival in the arcade bowling game Super Strike — a cocky, "
+            "playful trash-talker. Reply with ONE short taunt or reaction (max 12 words) "
+            "to the human player's shot. PG, funny, never cruel. No quotes, no emojis."
+        )
+    else:
+        system = (
+            "You are Luna, a hyped, witty play-by-play commentator for the arcade bowling "
+            "game Super Strike. React with ONE punchy line (max 12 words). Fun and PG. "
+            "No quotes, no emojis."
+        )
+    desc = {
+        "strike": f"The player just bowled a STRIKE on frame {req.frame}.",
+        "spare": f"The player picked up a SPARE on frame {req.frame}.",
+        "gutter": f"The player threw a GUTTER ball on frame {req.frame} (0 pins).",
+        "open": f"The player knocked down {req.knocked} pins on frame {req.frame}.",
+    }.get(req.event, f"The player knocked down {req.knocked} pins.")
+    try:
+        chat = _make_chat(f"quip-{uuid.uuid4()}", system)
+        text = await chat.send_message(UserMessage(text=desc))
+        line = (text or "").strip().strip('"').split("\n")[0][:120]
+        return {"text": line or _FALLBACK_QUIP.get(req.event, "Nice roll!")}
+    except Exception as e:
+        logger.warning(f"ai_quip failed: {e}")
+        return {"text": _FALLBACK_QUIP.get(req.event, "Nice roll!")}
+
+
+@api_router.post("/ai/coach")
+async def ai_coach(req: CoachRequest):
+    system = (
+        "You are a friendly, encouraging pro bowling coach in the game Super Strike. "
+        "Give ONE specific, actionable tip in 1-2 short sentences based on the player's "
+        "game stats (aim, timing, power, or when to use power-ups). No preamble, no lists."
+    )
+    prompt = (
+        f"Game mode: {req.mode}. Final score: {req.score}. Strikes: {req.strikes}. "
+        f"Spares: {req.spares}. Gutters: {req.gutters}. "
+        f"Result: {req.result or 'n/a'}. Give one coaching tip."
+    )
+    try:
+        chat = _make_chat(f"coach-{uuid.uuid4()}", system)
+        text = await chat.send_message(UserMessage(text=prompt))
+        return {"text": (text or "").strip() or "Focus on hitting the pocket between the 1 and 3 pins for more strikes!"}
+    except Exception as e:
+        logger.warning(f"ai_coach failed: {e}")
+        return {"text": "Aim for the pocket (between the 1 and 3 pins) and lock your power in the sweet zone for more strikes!"}
+
+
+@api_router.post("/ai/chat")
+async def ai_chat(req: ChatRequest):
+    system = (
+        "You are Coach Luna, a friendly and witty bowling expert inside the game Super "
+        "Strike. Answer the player's bowling questions clearly and concisely (2-4 "
+        "sentences). You can talk about technique, rules, scoring, and the game's "
+        "power-ups (magnet, giant, muscle, bomb, laser). Keep it upbeat and helpful."
+    )
+    # store the user message
+    await db.ai_chats.insert_one({
+        "session_id": req.session_id,
+        "role": "user",
+        "content": req.message,
+        "created_at": now_iso(),
+    })
+    # build short context from recent history
+    history = await db.ai_chats.find({"session_id": req.session_id}).sort("created_at", 1).to_list(20)
+    transcript = "\n".join(
+        f"{'Player' if m['role'] == 'user' else 'Coach'}: {m['content']}" for m in history[-8:]
+    )
+    prompt = f"Conversation so far:\n{transcript}\n\nReply to the Player's latest message."
+    try:
+        chat = _make_chat(req.session_id, system)
+        text = (await chat.send_message(UserMessage(text=prompt)) or "").strip()
+    except Exception as e:
+        logger.warning(f"ai_chat failed: {e}")
+        text = "Hmm, my headset cut out! Try asking that again in a moment."
+    await db.ai_chats.insert_one({
+        "session_id": req.session_id,
+        "role": "assistant",
+        "content": text,
+        "created_at": now_iso(),
+    })
+    return {"text": text}
+
+
+@api_router.get("/ai/chat/{session_id}")
+async def ai_chat_history(session_id: str):
+    msgs = await db.ai_chats.find({"session_id": session_id}).sort("created_at", 1).to_list(200)
+    return [{"role": m["role"], "content": m["content"], "created_at": m["created_at"]} for m in msgs]
 
 
 app.include_router(api_router)

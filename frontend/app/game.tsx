@@ -61,6 +61,9 @@ export default function Game() {
     score: number;
     finished: boolean;
   } | null>(null);
+  const [quip, setQuip] = useState<{ text: string; voice: "commentator" | "cpu" } | null>(null);
+  const quipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastEvent = useRef<"strike" | "spare" | "gutter" | "open">("open");
 
   const armedAim = useRef(0);
   const throwKey = useRef(0);
@@ -79,6 +82,24 @@ export default function Game() {
   }, []);
 
   const activeGame = active === "me" ? meRef.current : oppRef.current;
+
+  // ---------- AI quips ----------
+  const showQuip = useCallback(
+    (voice: "commentator" | "cpu", event: "strike" | "spare" | "gutter" | "open", knocked: number) => {
+      api
+        .aiQuip({ voice, event, knocked, frame: meRef.current.currentFrame + 1, opp_name: identity.current.name })
+        .then((r) => {
+          if (!r?.text) return;
+          setQuip({ text: r.text, voice });
+          if (quipTimer.current) clearTimeout(quipTimer.current);
+          quipTimer.current = setTimeout(() => setQuip(null), 4200);
+        })
+        .catch(() => {});
+    },
+    [],
+  );
+
+  useEffect(() => () => quipTimer.current && clearTimeout(quipTimer.current), []);
 
   // ---------- Banner ----------
   const showBanner = (res: ThrowResult) => {
@@ -149,6 +170,15 @@ export default function Game() {
     showBanner(res);
     force();
     if (p.owner === "me") {
+      const event = res.isStrike
+        ? "strike"
+        : res.isSpare
+          ? "spare"
+          : res.knockedCount === 0
+            ? "gutter"
+            : "open";
+      lastEvent.current = event;
+      if (event !== "open") showQuip("commentator", event, res.knockedCount);
       setTimeout(() => afterPlayerThrow(res), 950);
     }
     if (arriveResolver.current) {
@@ -217,6 +247,7 @@ export default function Game() {
   const startCpuTurn = async () => {
     setActive("opp");
     setPhase("cpu");
+    showQuip("cpu", lastEvent.current, 0);
     const g = oppRef.current;
     const startFrame = g.currentFrame;
     await delay(650);
@@ -373,6 +404,22 @@ export default function Game() {
       {/* Turn / status banner */}
       {banner && <Celebration text={banner} />}
 
+      {/* AI quip banner */}
+      {quip && (
+        <View style={[styles.quipWrap, { top: insets.top + 150 }]} pointerEvents="none">
+          <View style={styles.quipPill}>
+            <Ionicons
+              name={quip.voice === "cpu" ? "hardware-chip" : "mic"}
+              size={16}
+              color={quip.voice === "cpu" ? colors.brandPrimary : colors.brand}
+            />
+            <Text style={styles.quipText} numberOfLines={2}>
+              {quip.text}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Bottom controls */}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing.sm }]}>
         <Glass style={styles.controlPanel} intensity={45} tint="dark">
@@ -491,4 +538,30 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   statusText: { fontFamily: font.display, fontSize: type.lg, color: "#EAF7FF" },
+  quipWrap: {
+    position: "absolute",
+    left: spacing.lg,
+    right: spacing.lg,
+    alignItems: "center",
+  },
+  quipPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    maxWidth: "100%",
+    backgroundColor: "rgba(10,12,20,0.9)",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(34,225,255,0.4)",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadow.card,
+  },
+  quipText: {
+    flexShrink: 1,
+    fontFamily: font.text,
+    fontWeight: "700",
+    fontSize: type.base,
+    color: "#EAF7FF",
+  },
 });

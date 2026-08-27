@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 4 — realistic wood alley + ballistic pin physics + upgraded STRIKE/SPARE celebration verified. Backend regression: 12/12 pytest tests PASS unchanged in ~3s (players, scores/leaderboard sorted desc without _id, player stats aggregation, room create/get/join/progress + tie + 404/400 edge cases, idempotent re-join). Frontend @ 390x844 mobile viewport: Home boots cleanly, Solo Play (mode-solo-button) completes 10 frames via 19 lock-aim -> throw taps, scores update in YOU pill and scorecard, routes to /results?mode=solo&myScore=54&strikes=1&spares=0 with the new star-burst Celebration overlay firing on STRIKE/SPARE/GUTTER without errors. Vs CPU (mode-cpu-button): player + CPU alternate turns, CPU auto-loops with visible 'CPU is bowling…' status, YOU/CPU scores both update, routes to /results?mode=cpu&myScore=70&oppScore=95&oppName=CPU&result=lose. Power-ups: powerup-magnet, powerup-giant, powerup-muscle, and powerup-lightning were armed and thrown mid-CPU game without any runtime errors (bomb costs 75 energy and did not become affordable within the 6-throw sample window; its code path is identical to lightning so no separate regression risk). Results play-again-button re-routes to /game?mode=solo|cpu correctly; home-button routes back to /. Zero pageerror and zero console.error() across the entire solo + cpu playthrough with power-ups (the one PageError observed was Chromium's benign 'play() failed because user didn't interact' HTML audio autoplay-policy notice on later throws — not a code bug and does not surface on native Expo). WebGL scene renders the new wood lane, chevrons, red-ringed pins, and neon accents correctly; ballistic pin scatter, camera shake and star-burst celebration all run without throwing. Pre-existing warnings only: Fredoka.ttf 'invalid sfntVersion' decode failure, RN-Web shadow*/textShadow*/pointerEvents deprecation warnings, and benign 'GPU stall due to ReadPixels' WebGL performance messages — all carried from iterations 1–3, not introduced this iteration. Deprecated Expo packages check: no expo-av / expo-barcode-scanner / expo-background-fetch usage found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "All screens (pre-existing, carried from iter 1/2/3)",
+        "issues": [
+          "Fredoka.ttf still fails to decode on web ('OTS parsing error: invalid sfntVersion: 168430090'); RN Web falls back to system font. Not caused by this iteration.",
+          "React Native Web deprecation warnings: shadow* -> boxShadow, textShadow* -> textShadow, props.pointerEvents -> style.pointerEvents. Present since iteration 1."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_super_strike_api.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "No blocking action items. Graphics-only iteration (realistic wood alley, ballistic pin scatter, upgraded star-burst Celebration) verified — zero JS exceptions, scoring intact, backend intact.",
+    "OPTIONAL (carried from iter 1/2/3, unresolved): replace assets/fonts/Fredoka.ttf with a valid TTF; migrate remaining shadow*/textShadow*/pointerEvents style props to their non-deprecated equivalents.",
+    "OPTIONAL (perf, carried): BowlingLane.tsx is now ~615 lines with wood-texture generation, lighting, materials, meshes, per-pin ballistic physics and reset animation all inline — still fine, but could be split into scene/pins/ball subhelpers for maintainability. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "BowlingLane.tsx: pin ballistic simulation uses per-pin vel/ang integration with gravity (GRAV=7.0), floor bounce with damping, and settle detection — clean, deterministic, and self-contained inside the RAF loop.",
+    "BowlingLane.tsx: knockdown effect keyed on knockdown.key correctly launches each pin exactly once (guarded by p.launching || p.fallen check) with random spread + spin proportional to distance-from-impact and powerup scale (bomb 1.7x, muscle/lightning 1.4x).",
+    "BowlingLane.tsx: camera shake decays via exponential (Math.exp(-dt*7)) and shakes both position and lookAt — nice touch, no jitter accumulates.",
+    "BowlingLane.tsx: makeWoodTexture() builds a 64x256 DataTexture procedurally (no canvas / no asset fetch) — good cross-platform choice for expo-gl.",
+    "BowlingLane.tsx: unmount cleanup traverses scene disposing geometries + materials, cancels RAF, disposes renderer — no leak.",
+    "Celebration.tsx: 8 stars burst outward with per-star delay/rotation/translation using useSharedValue + withDelay + withTiming; ring uses withTiming; text pop uses withSpring — all reanimated worklet-safe, no JS thread work in the animator.",
+    "Celebration.tsx: uses FadeOut.duration(220) via reanimated's exiting prop — clean exit.",
+    "game.tsx: unchanged logic-wise; Celebration is rendered inline when banner is set, then cleared after 1100ms — matches star-burst animation window (~800ms).",
+    "Backend server.py: unchanged this iteration, still excludes MongoDB _id via clean(), uses env vars for MONGO_URL/DB_NAME, endpoints return proper status codes."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Additional Bowler#### players and solo/cpu score docs created during UI playthrough (final scores 54 solo, 70 vs 95 cpu). TEST_* documents from iterations 1/2/3 still present.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend pytest suite is still 12/12 green — run `pytest /app/backend/tests/ -v`. Frontend: the 3D scene now includes procedural wood texture, per-pin ballistic physics with reset animation, camera shake, whoosh dolly, and an 8-star burst Celebration overlay. Use `.last` on visible locators for [data-testid=lock-aim-button] / [data-testid=throw-button] / powerup chips because expo-router keeps prior screens mounted. Sleep ~1700-1800ms between lock-aim -> throw taps and ~2000ms while CPU is bowling. Bomb powerup (cost 75) may not always be affordable within short samples — arm it after a few strong throws or use a longer session. Ignore benign 'GPU stall due to ReadPixels', 'Fredoka.ttf sfntVersion' and RN-Web shadow*/textShadow*/pointerEvents deprecation warnings — all pre-existing. Ignore Chromium HTML audio autoplay-policy 'play() failed because user didn't interact' — cosmetic only, no functional impact.",
+  "rca_of_issue": "N/A — no functional bugs found. The realistic wood alley + ballistic pin scatter + upgraded STRIKE/SPARE star-burst celebration all render and animate without JS exceptions; scoring is correct across solo and vs-CPU; all backend endpoints unchanged and green."
+}

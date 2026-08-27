@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,6 +37,7 @@ export default function Results() {
   const spares = Number(params.spares || 0);
 
   const [submitting, setSubmitting] = useState(true);
+  const [coachTip, setCoachTip] = useState<string | null>(null);
 
   useEffect(() => {
     const win = result === "win" || (mode === "solo" && myScore >= 150);
@@ -55,6 +56,10 @@ export default function Results() {
         });
       } catch (e) {}
       setSubmitting(false);
+      try {
+        const r = await api.aiCoach({ score: myScore, strikes, spares, mode, result: result || null });
+        setCoachTip(r?.text || null);
+      } catch (e) {}
     })();
   }, []);
 
@@ -72,7 +77,11 @@ export default function Results() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.body, { paddingTop: insets.top + spacing.xl }]}>
+      <ScrollView
+        style={styles.bodyScroll}
+        contentContainerStyle={[styles.body, { paddingTop: insets.top + spacing.xl }]}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.Text entering={FadeInDown.duration(400)} style={[styles.headline, { color: accent }]}>
           {headline}
         </Animated.Text>
@@ -118,7 +127,22 @@ export default function Results() {
             </View>
           </View>
         </Animated.View>
-      </View>
+
+        <Animated.View entering={FadeInDown.delay(350)} style={styles.coachCard}>
+          <View style={styles.coachHeader}>
+            <Ionicons name="school" size={18} color={colors.brandPrimary} />
+            <Text style={styles.coachTitle}>Coach Luna says</Text>
+          </View>
+          {coachTip ? (
+            <Text style={styles.coachText}>{coachTip}</Text>
+          ) : (
+            <View style={styles.coachLoading}>
+              <ActivityIndicator color={colors.brandPrimary} size="small" />
+              <Text style={styles.coachLoadingText}>Analyzing your game…</Text>
+            </View>
+          )}
+        </Animated.View>
+      </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
         <PrimaryButton
@@ -144,7 +168,8 @@ export default function Results() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  body: { flex: 1, alignItems: "center", paddingHorizontal: spacing.lg, gap: spacing.lg },
+  bodyScroll: { flex: 1 },
+  body: { alignItems: "center", paddingHorizontal: spacing.lg, gap: spacing.lg, paddingBottom: spacing.lg },
   headline: { fontFamily: font.display, fontSize: type["4xl"], textAlign: "center" },
   trophyWrap: {
     width: 160,
@@ -183,5 +208,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   statText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  coachCard: {
+    width: "100%",
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.brandPrimary,
+    ...shadow.card,
+  },
+  coachHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  coachTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.brandPrimary },
+  coachText: { fontFamily: font.text, fontSize: type.base, color: colors.onSurface, lineHeight: 22 },
+  coachLoading: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  coachLoadingText: { fontFamily: font.text, fontSize: type.base, color: colors.onSurfaceSecondary },
   footer: { paddingHorizontal: spacing.lg, gap: spacing.md },
 });

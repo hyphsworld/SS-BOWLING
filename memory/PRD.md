@@ -56,7 +56,28 @@ to cause strikes. Reference: Baseball Simulator 1000 ("Ultra" plays).
 ## Next Tasks
 - Gather user feedback on difficulty tuning of the knockdown model.
 
-## Implemented (2026-08-23b) — REAL 3D engine
+## Implemented (2026-08-27) — AI (GPT-5.6 Luna) + neon graffiti
+- **OpenAI GPT-5.6 Luna** via `emergentintegrations` + `EMERGENT_LLM_KEY` (backend/.env).
+  Backend endpoints in `server.py`:
+  - `POST /api/ai/quip` — witty commentator OR cocky CPU trash-talk one-liners.
+  - `POST /api/ai/coach` — 1-2 sentence coaching tip from game stats.
+  - `POST /api/ai/chat` + `GET /api/ai/chat/{session_id}` — "Coach Luna" chat,
+    history persisted in `ai_chats` collection. All have graceful fallbacks.
+- **Frontend AI**: live commentator quip banner + CPU banter in `game.tsx`;
+  "Coach Luna says" tip card on `results.tsx`; new `/coach` chat screen
+  (`app/coach.tsx`) with suggestion chips + `react-native-keyboard-controller`;
+  Home "Ask Coach Luna" button. API in `src/api/client.ts` (aiQuip/aiCoach/aiChat).
+- **Realistic wood alley + subtle neon** (BowlingLane rewrite): glossy procedural
+  wood-plank lane (DataTexture) with ball reflection smear, metal side walls,
+  white pins w/ red rings, pin pit, subtle neon accent strips.
+- **Neon graffiti** on both alley walls (procedural additive-blend DataTexture).
+- **Ballistic pin physics** (fly/tumble/bounce/settle), camera shake + whoosh dolly,
+  upgraded STRIKE/SPARE star-burst Celebration.
+- Verified iteration 5: backend 19/19 (12 core + 7 AI), all game/results/coach flows
+  pass with live GPT responses, zero console errors.
+- Backlog note: replace Fredoka.ttf (decode warning) + migrate deprecated RN-Web style props.
+
+
 - **True 3D lane** via `three.js` + `expo-gl` (GLView) — replaced the View-based
   fake-3D `BowlingLane.tsx`. First-person camera, real perspective, fog depth.
   - 3D neon lane (emissive edges, grid rungs, center line, 3D chevron arrows),

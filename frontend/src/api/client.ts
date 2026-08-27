@@ -72,4 +72,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  aiQuip: (payload: {
+    voice: "commentator" | "cpu";
+    event: "strike" | "spare" | "gutter" | "open";
+    knocked?: number;
+    frame?: number;
+    opp_name?: string | null;
+  }): Promise<{ text: string }> =>
+    req("/ai/quip", { method: "POST", body: JSON.stringify(payload) }),
+
+  aiCoach: (payload: {
+    score: number;
+    strikes: number;
+    spares: number;
+    gutters?: number;
+    mode: string;
+    result?: string | null;
+  }): Promise<{ text: string }> =>
+    req("/ai/coach", { method: "POST", body: JSON.stringify(payload) }),
+
+  aiChat: (payload: { session_id: string; message: string; name?: string }): Promise<{ text: string }> =>
+    req("/ai/chat", { method: "POST", body: JSON.stringify(payload) }),
+
+  aiChatHistory: (session_id: string): Promise<{ role: string; content: string; created_at: string }[]> =>
+    req(`/ai/chat/${session_id}`),
 };

@@ -1,0 +1,57 @@
+{
+  "summary": "Iteration 5 — GPT-5.6 Luna AI features + neon lane graffiti verified end-to-end. Backend pytest 19/19 PASS in ~13s: added 7 new AI tests (test_ai_endpoints.py) plus regression 12 (players/scores/leaderboard/rooms/tie/404/400/idempotent). AI endpoints all return non-empty {text}: POST /api/ai/quip {voice:'commentator',event:'strike'} and {voice:'cpu',event:'gutter'} both return live GPT-5.6-luna lines; POST /api/ai/coach returns 1-2 sentence coaching tips; POST /api/ai/chat persists (user,assistant) pairs and GET /api/ai/chat/{session_id} returns them ordered chronologically with correct role alternation (user,assistant,user,assistant) and no _id leak; empty session returns []. Frontend @ 390x844 mobile viewport: Home boots cleanly and 'Ask Coach Luna' (testID ai-coach-button) routes to /coach — welcome card + 4 suggestion chips render; tapping the chip 'How do I get more strikes?' shows user bubble, 'Luna is thinking…' typing indicator, then a full paragraph AI reply that even references the game's power-ups (giant/magnet/laser); typing 'Any tip for spares?' in coach-input + tapping coach-send-button produced a second reply about the 3-6-9 rule; coach-back-button returned home. Solo game played 10 frames via lock-aim -> throw-button taps, banner celebration fired on strike/spare, routed to /results?mode=solo&myScore=109&strikes=1&spares=2 with the new 'Coach Luna says' card that populated (~2s later) with a real GPT-5.6 tip ('Your clean frames are a solid base—focus on improving aim by adjusting your target one board toward the pocket after each missed spare…'); play-again-button re-routed to /game and home-button back to /. Vs CPU (mode-cpu-button): CPU trash-talk quip banner captured in screenshot — 'Oof, even the pins are starting to feel bad for you.' — with the hardware-chip icon and pinned near the top HUD, non-blocking; 'CPU is bowling…' status shown. Neon graffiti now clearly visible on both 3D lane walls (cyan/pink/purple streaks) with the WebGL scene rendering all pins, ball, chevrons and lighting correctly. Zero console.error and zero PageError across ALL flows (coach chat, solo, vs CPU, results, navigation). Pre-existing benign warnings only (Fredoka.ttf, RN-Web shadow*/textShadow*/pointerEvents deprecation, GPU stall ReadPixels, audio autoplay) — all carried from iterations 1–4, not introduced this iteration. Deprecated Expo package check: no expo-av / expo-barcode-scanner / expo-background-fetch usage found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "All screens (pre-existing, carried from iter 1-4)",
+        "issues": [
+          "Fredoka.ttf still fails to decode on web (OTS parsing error: invalid sfntVersion 168430090); RN-Web falls back to system font. Not caused by this iteration.",
+          "RN-Web deprecation warnings (shadow* -> boxShadow, textShadow* -> textShadow, props.pointerEvents -> style.pointerEvents). Present since iteration 1, cosmetic."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_super_strike_api.py",
+    "/app/backend/tests/test_ai_endpoints.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "No blocking action items. AI features (quip/coach/chat + history) + neon wall graffiti + Results Coach Luna card all verified live end-to-end with zero JS exceptions.",
+    "OPTIONAL (carried from iter 1-4, unresolved): replace assets/fonts/Fredoka.ttf with a valid TTF; migrate remaining shadow*/textShadow*/pointerEvents style props to their non-deprecated equivalents."
+  ],
+  "critical_code_review_comments": [
+    "server.py: AI endpoints correctly wrap emergentintegrations LlmChat with per-request session UUIDs for quip/coach (stateless per call) and reuse req.session_id for /ai/chat so LlmChat internal context matches DB history — good separation.",
+    "server.py: /ai/chat persists BOTH the user message (before LLM call) and the assistant reply (after) with created_at ISO timestamps and sorts by created_at ascending in GET — guarantees deterministic order in test_chat_send_and_history_order.",
+    "server.py: All three AI endpoints have try/except around the LLM call with static, non-empty fallback text (_FALLBACK_QUIP dict + coach fallback + chat fallback) — graceful degradation confirmed by the response schema even if the model errors.",
+    "server.py: quip response trims quotes, splits on newline and truncates to 120 chars — safe against multi-line/verbose model output.",
+    "server.py: still uses clean() to strip MongoDB _id from all responses (rooms/scores/leaderboard), and /ai/chat/{session_id} explicitly projects only role/content/created_at so no _id leaks either — verified by tests.",
+    "client.ts: adds aiQuip/aiCoach/aiChat/aiChatHistory with matching TS types; uses EXPO_PUBLIC_BACKEND_URL from env (no hardcoding).",
+    "coach.tsx: chat screen wires ensurePlayer().id as session_id so chat history is scoped to the player and survives reloads (verified — history is loaded on mount via /ai/chat/{session_id}).",
+    "coach.tsx: uses KeyboardAvoidingView from react-native-keyboard-controller, ScrollView with onContentSizeChange -> scrollToEnd, and disables the send button while empty or sending — solid UX.",
+    "game.tsx: showQuip() fires only for non-'open' events on the player's throws (strike/spare/gutter) via commentator voice, and once per CPU turn start with cpu voice keyed off lastEvent — matches spec.",
+    "game.tsx: quip banner is pointerEvents='none' and auto-clears after 4.2s — cannot block controls.",
+    "results.tsx: Coach Luna card renders ActivityIndicator + 'Analyzing your game…' until aiCoach() resolves — clean loading state.",
+    "No secrets are exposed to frontend; EMERGENT_LLM_KEY stays server-side."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_endpoints.py (new — 7 AI endpoint tests)"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Added ~4 new TEST_session_* documents in ai_chats collection (via test_chat_send_and_history_order). Plus 2 real player-scoped chat sessions from UI playthrough (chip tap + typed message). Existing TEST_* players/scores/rooms from iterations 1-4 still present.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend pytest suite is 19/19 green — run `pytest /app/backend/tests/ -v` (uses pytest-xdist with 2 workers, ~13s). AI tests hit a real LLM so allow 30s timeout per test; the response payload always has {text: <non-empty>} even on model failure (server has try/except + static fallbacks). Frontend: /coach chat screen loads history for the current player.id on mount, so previously-tested Bowler players will already have transcript on re-entry. AI quip banner in /game auto-hides after 4200ms and is pointerEvents:none — use screenshots for visual confirmation, not innerText polling. Vs CPU quip fires at CPU turn START (keyed off the player's last event) — best captured within ~1s of the 'CPU is bowling…' status appearing. Neon graffiti is baked into BowlingLane.tsx and only WebGL-visible — screenshot confirms.  Use .last on visible locators for [data-testid=lock-aim-button] / [data-testid=throw-button] / powerup chips because expo-router keeps prior screens mounted. Ignore benign 'GPU stall ReadPixels', Fredoka.ttf sfntVersion, RN-Web shadow*/textShadow*/pointerEvents deprecations, and Chromium HTML audio autoplay 'play() failed' — all pre-existing and cosmetic.",
+  "rca_of_issue": "N/A — no functional bugs found. All AI endpoints return non-empty {text}, chat history persists in the correct order, Coach chat / Results Coach card / in-game commentator + CPU quip banners all render and dismiss correctly, neon graffiti draws on the 3D lane walls, and every button (ai-coach-button, coach-input, coach-send-button, coach-back-button, mode-solo-button, mode-cpu-button, lock-aim-button, throw-button, play-again-button, home-button, quit-game-button) is tappable and wired to the correct route/action."
+}
