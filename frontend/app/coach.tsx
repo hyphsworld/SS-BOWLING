@@ -19,6 +19,7 @@ import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { api } from "@/src/api/client";
 import { ensurePlayer } from "@/src/store/player";
 import { playSound } from "@/src/audio/sounds";
+import { speak } from "@/src/audio/speech";
 
 interface Msg {
   role: "user" | "assistant";
@@ -134,6 +135,16 @@ export default function Coach() {
                 <Text style={[styles.bubbleText, m.role === "user" && styles.bubbleTextUser]}>
                   {m.content}
                 </Text>
+                {m.role === "assistant" && (
+                  <Pressable
+                    onPress={() => speak(m.content)}
+                    style={styles.speakBubbleBtn}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="volume-high" size={15} color={colors.brandPrimary} />
+                    <Text style={styles.speakBubbleText}>Hear it</Text>
+                  </Pressable>
+                )}
               </View>
             </Animated.View>
           ))}
@@ -254,6 +265,14 @@ const styles = StyleSheet.create({
   bubbleAI: { backgroundColor: colors.surfaceSecondary, borderBottomLeftRadius: 4, ...shadow.card },
   bubbleText: { fontFamily: font.text, fontSize: type.base, color: colors.onSurface, lineHeight: 21 },
   bubbleTextUser: { color: "#fff" },
+  speakBubbleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: spacing.xs,
+    alignSelf: "flex-start",
+  },
+  speakBubbleText: { fontFamily: font.display, fontSize: type.sm, color: colors.brandPrimary },
   typing: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   typingText: { fontFamily: font.text, fontSize: type.base, color: colors.onSurfaceSecondary },
   chips: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm, alignItems: "center" },

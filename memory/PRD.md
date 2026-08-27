@@ -56,7 +56,25 @@ to cause strikes. Reference: Baseball Simulator 1000 ("Ultra" plays).
 ## Next Tasks
 - Gather user feedback on difficulty tuning of the knockdown model.
 
-## Implemented (2026-08-27) — AI (GPT-5.6 Luna) + neon graffiti
+## Implemented (2026-08-27b) — Coach Voice, Rivalry, Strike Cam, Ball Skins
+- **Coach Voice**: `expo-speech` reads Coach Luna's tips aloud (respects the sound
+  mute toggle). Auto-speaks the Results tip + speaker buttons on Results
+  (`coach-speak-button`) and each chat reply ("Hear it"). `src/audio/speech.ts`.
+- **Rivalry Mode**: persistent CPU rival with a name + win/loss memory
+  (`src/store/rival.ts`, AsyncStorage). Vs CPU shows the rival's name; `/api/ai/quip`
+  now takes rival_name/cpu_wins/player_wins/last_result so the trash-talk references
+  the rivalry. Result recorded after each Vs CPU game.
+- **Strike Cam**: on a strike (all 10 pins in one throw), the 3D camera does a
+  slow-mo cinematic zoom into the pin deck (`cinematicRef` + physicsDt slow-mo in
+  BowlingLane loop).
+- **Ball Skins**: `/skins` screen (`app/skins.tsx`) to pick/unlock glossy 3D ball
+  styles — Classic (default), Chrome (3 games), Galaxy (score 120+), Neon (5 strikes).
+  Selection persists (`src/game/skins.ts`) and applies to the in-game ball material
+  (skin used when no power-up is armed). Home "Ball Skins" button.
+- Verified iteration 6: backend 20/20 (incl. rivalry quip test), all game/results/
+  coach/skins flows pass, zero console errors.
+
+
 - **OpenAI GPT-5.6 Luna** via `emergentintegrations` + `EMERGENT_LLM_KEY` (backend/.env).
   Backend endpoints in `server.py`:
   - `POST /api/ai/quip` — witty commentator OR cocky CPU trash-talk one-liners.

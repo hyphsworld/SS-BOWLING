@@ -227,6 +227,10 @@ class QuipRequest(BaseModel):
     knocked: int = 0
     frame: int = 1
     opp_name: Optional[str] = None
+    rival_name: Optional[str] = None
+    cpu_wins: int = 0
+    player_wins: int = 0
+    last_result: Optional[str] = None  # player's perspective: win|lose|tie
 
 
 class CoachRequest(BaseModel):
@@ -263,10 +267,25 @@ _FALLBACK_QUIP = {
 @api_router.post("/ai/quip")
 async def ai_quip(req: QuipRequest):
     if req.voice == "cpu":
+        rival = req.rival_name or "the CPU"
+        history = ""
+        if req.cpu_wins or req.player_wins:
+            history = (
+                f" Rivalry so far: you (the rival) have won {req.cpu_wins}, the human "
+                f"has won {req.player_wins}."
+            )
+        if req.last_result == "win":
+            history += " Last match the human beat you."
+        elif req.last_result == "lose":
+            history += " Last match you beat the human."
+        elif req.last_result == "tie":
+            history += " Last match ended in a tie."
         system = (
-            "You are the CPU rival in the arcade bowling game Super Strike — a cocky, "
-            "playful trash-talker. Reply with ONE short taunt or reaction (max 12 words) "
-            "to the human player's shot. PG, funny, never cruel. No quotes, no emojis."
+            f"You are {rival}, the human player's recurring rival in the arcade bowling "
+            "game Super Strike — a cocky, playful trash-talker with a memory of your "
+            "rivalry. Reply with ONE short taunt or reaction (max 14 words) to the "
+            f"human player's shot.{history} Reference the rivalry when it's fun. "
+            "PG, funny, never cruel. No quotes, no emojis."
         )
     else:
         system = (

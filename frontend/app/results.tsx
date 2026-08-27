@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,6 +11,8 @@ import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { api } from "@/src/api/client";
 import { ensurePlayer } from "@/src/store/player";
 import { playSound } from "@/src/audio/sounds";
+import { speak, stopSpeaking } from "@/src/audio/speech";
+import { recordRivalResult } from "@/src/store/rival";
 
 const TROPHY =
   "https://images.unsplash.com/photo-1578269174936-2709b6aeb913?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHx0cm9waHklMjBjYXJ0b29uJTIwd2lubmVyfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85";
@@ -56,11 +58,17 @@ export default function Results() {
         });
       } catch (e) {}
       setSubmitting(false);
+      if (mode === "cpu" && (result === "win" || result === "lose" || result === "tie")) {
+        recordRivalResult(result).catch(() => {});
+      }
       try {
         const r = await api.aiCoach({ score: myScore, strikes, spares, mode, result: result || null });
-        setCoachTip(r?.text || null);
+        const tip = r?.text || null;
+        setCoachTip(tip);
+        if (tip) speak(tip);
       } catch (e) {}
     })();
+    return () => stopSpeaking();
   }, []);
 
   const isVs = mode === "cpu" || mode === "multiplayer";
@@ -132,6 +140,16 @@ export default function Results() {
           <View style={styles.coachHeader}>
             <Ionicons name="school" size={18} color={colors.brandPrimary} />
             <Text style={styles.coachTitle}>Coach Luna says</Text>
+            {coachTip && (
+              <Pressable
+                testID="coach-speak-button"
+                onPress={() => speak(coachTip)}
+                style={styles.speakBtn}
+                hitSlop={8}
+              >
+                <Ionicons name="volume-high" size={18} color={colors.brandPrimary} />
+              </Pressable>
+            )}
           </View>
           {coachTip ? (
             <Text style={styles.coachText}>{coachTip}</Text>
@@ -220,6 +238,7 @@ const styles = StyleSheet.create({
   },
   coachHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   coachTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.brandPrimary },
+  speakBtn: { marginLeft: "auto", padding: 4 },
   coachText: { fontFamily: font.text, fontSize: type.base, color: colors.onSurface, lineHeight: 22 },
   coachLoading: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   coachLoadingText: { fontFamily: font.text, fontSize: type.base, color: colors.onSurfaceSecondary },

@@ -79,6 +79,10 @@ export const api = {
     knocked?: number;
     frame?: number;
     opp_name?: string | null;
+    rival_name?: string | null;
+    cpu_wins?: number;
+    player_wins?: number;
+    last_result?: string | null;
   }): Promise<{ text: string }> =>
     req("/ai/quip", { method: "POST", body: JSON.stringify(payload) }),
 

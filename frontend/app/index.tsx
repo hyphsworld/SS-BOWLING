@@ -125,6 +125,14 @@ export default function Home() {
             <Ionicons name="stats-chart-outline" size={18} color={colors.onSurface} />
             <Text style={styles.smallBtnText}>My Stats</Text>
           </Pressable>
+          <Pressable
+            testID="nav-skins-button"
+            style={styles.smallBtn}
+            onPress={() => router.push("/skins")}
+          >
+            <Ionicons name="tennisball-outline" size={18} color={colors.onSurface} />
+            <Text style={styles.smallBtnText}>Ball Skins</Text>
+          </Pressable>
         </Animated.View>
       </View>
     </View>
@@ -196,7 +204,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
+    gap: 4,
+    paddingHorizontal: 4,
   },
-  smallBtnText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  smallBtnText: { fontFamily: font.display, fontSize: type.sm, color: colors.onSurface },
 });

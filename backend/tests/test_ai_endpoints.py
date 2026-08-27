@@ -30,6 +30,28 @@ class TestAIQuip:
         body = r.json()
         assert "text" in body and len(body["text"].strip()) > 0
 
+    def test_cpu_rivalry_strike(self, api_client, api_url):
+        """Iter6: CPU voice with rivalry fields (rival_name, cpu_wins, player_wins, last_result)."""
+        r = api_client.post(
+            f"{api_url}/ai/quip",
+            json={
+                "voice": "cpu",
+                "event": "strike",
+                "frame": 4,
+                "knocked": 10,
+                "rival_name": "Neon Nikki",
+                "cpu_wins": 2,
+                "player_wins": 1,
+                "last_result": "lose",
+            },
+            timeout=30,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert "text" in body
+        assert isinstance(body["text"], str)
+        assert len(body["text"].strip()) > 0
+
     def test_commentator_spare(self, api_client, api_url):
         r = api_client.post(
             f"{api_url}/ai/quip",

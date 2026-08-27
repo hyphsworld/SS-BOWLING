@@ -26,6 +26,8 @@ import {
 import { api } from "@/src/api/client";
 import { ensurePlayer } from "@/src/store/player";
 import { playSound, stopSound } from "@/src/audio/sounds";
+import { getRival, Rival } from "@/src/store/rival";
+import { getSelectedSkin } from "@/src/game/skins";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -72,6 +74,9 @@ export default function Game() {
 
   const identity = useRef<{ id: string; name: string }>({ id: "", name: "You" });
   const routed = useRef(false);
+  const rivalRef = useRef<Rival | null>(null);
+  const [rivalName, setRivalName] = useState("CPU");
+  const [ballSkin, setBallSkin] = useState("classic");
 
   useEffect(() => {
     ensurePlayer()
@@ -79,6 +84,13 @@ export default function Game() {
         identity.current = p;
       })
       .catch(() => {});
+    getSelectedSkin().then(setBallSkin);
+    if (mode === "cpu") {
+      getRival().then((r) => {
+        rivalRef.current = r;
+        setRivalName(r.name);
+      });
+    }
   }, []);
 
   const activeGame = active === "me" ? meRef.current : oppRef.current;
@@ -86,11 +98,22 @@ export default function Game() {
   // ---------- AI quips ----------
   const showQuip = useCallback(
     (voice: "commentator" | "cpu", event: "strike" | "spare" | "gutter" | "open", knocked: number) => {
+      const r = rivalRef.current;
       api
-        .aiQuip({ voice, event, knocked, frame: meRef.current.currentFrame + 1, opp_name: identity.current.name })
-        .then((r) => {
-          if (!r?.text) return;
-          setQuip({ text: r.text, voice });
+        .aiQuip({
+          voice,
+          event,
+          knocked,
+          frame: meRef.current.currentFrame + 1,
+          opp_name: identity.current.name,
+          rival_name: voice === "cpu" ? r?.name : undefined,
+          cpu_wins: voice === "cpu" ? r?.cpuWins ?? 0 : undefined,
+          player_wins: voice === "cpu" ? r?.playerWins ?? 0 : undefined,
+          last_result: voice === "cpu" ? r?.lastResult ?? undefined : undefined,
+        })
+        .then((res) => {
+          if (!res?.text) return;
+          setQuip({ text: res.text, voice });
           if (quipTimer.current) clearTimeout(quipTimer.current);
           quipTimer.current = setTimeout(() => setQuip(null), 4200);
         })
@@ -299,7 +322,7 @@ export default function Game() {
         mode: "cpu",
         myScore: String(my),
         oppScore: String(opp),
-        oppName: "CPU",
+        oppName: rivalName,
         result,
         strikes: String(countStrikes(meRef.current.frames)),
         spares: String(countSpares(meRef.current.frames)),
@@ -348,6 +371,7 @@ export default function Game() {
         standing={activeGame.standing}
         throwState={throwState}
         knockdown={knockdown}
+        ballSkin={ballSkin}
         onArrive={onArrive}
       />
 
@@ -380,7 +404,7 @@ export default function Game() {
                 ]}
               >
                 <Text style={styles.scorePillLabel}>
-                  {mode === "cpu" ? "CPU" : oppRemote?.name?.slice(0, 6) ?? "OPP"}
+                  {mode === "cpu" ? rivalName.split(" ")[0].slice(0, 8) : oppRemote?.name?.slice(0, 6) ?? "OPP"}
                 </Text>
                 <Text style={styles.scorePillValue}>{oppTotal}</Text>
               </View>

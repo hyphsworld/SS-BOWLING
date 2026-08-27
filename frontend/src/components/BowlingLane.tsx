@@ -11,6 +11,7 @@ import Animated, {
 import * as THREE from "three";
 import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
+import { SKIN_MAP } from "@/src/game/skins";
 
 export interface ThrowState {
   key: number;
@@ -22,6 +23,7 @@ interface Props {
   standing: number[];
   throwState: ThrowState | null;
   knockdown: { key: number; pins: number[] } | null;
+  ballSkin?: string;
   onArrive?: () => void;
 }
 
@@ -48,8 +50,6 @@ const BALL_COLORS: Record<string, number> = {
   lightning: 0x63e6ff,
   none: 0xff5a2a,
 };
-
-const REFLECT: Record<string, number> = { ...BALL_COLORS };
 
 function pinWorld(id: number) {
   const p = PINS[id];
@@ -173,7 +173,7 @@ interface PinObj {
   resetFromQuat: THREE.Quaternion;
 }
 
-export default function BowlingLane({ standing, throwState, knockdown, onArrive }: Props) {
+export default function BowlingLane({ standing, throwState, knockdown, ballSkin, onArrive }: Props) {
   const glRef = useRef<ExpoWebGLRenderingContext | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -187,6 +187,28 @@ export default function BowlingLane({ standing, throwState, knockdown, onArrive 
   const pinsRef = useRef<PinObj[]>([]);
   const impactRef = useRef(new THREE.Vector3(0, 0, PIN_FRONT_Z));
   const shakeRef = useRef(0);
+  const skinRef = useRef(ballSkin || "classic");
+  const cinematicRef = useRef<{ active: boolean; t: number; dur: number }>({
+    active: false,
+    t: 0,
+    dur: 1.5,
+  });
+
+  useEffect(() => {
+    skinRef.current = ballSkin || "classic";
+    const skin = SKIN_MAP[skinRef.current];
+    const ball = ballRef.current;
+    // apply base skin immediately when idle (no active throw / power-up)
+    if (ball && skin && (!throwState || !throwState.powerup)) {
+      const mat = ball.material as THREE.MeshStandardMaterial;
+      mat.color.setHex(skin.color);
+      mat.emissive.setHex(skin.emissive);
+      mat.emissiveIntensity = skin.emissiveIntensity;
+      mat.metalness = skin.metalness;
+      mat.roughness = skin.roughness;
+      if (ballLightRef.current) ballLightRef.current.color.setHex(skin.emissive);
+    }
+  }, [ballSkin]);
 
   const standingSetRef = useRef<Set<number>>(new Set(standing));
   const recentlyKnockedRef = useRef<Map<number, number>>(new Map());
@@ -224,14 +246,25 @@ export default function BowlingLane({ standing, throwState, knockdown, onArrive 
     a.dur = throwState.powerup === "muscle" ? 0.56 : 0.82;
     if (ballRef.current) {
       const mat = ballRef.current.material as THREE.MeshStandardMaterial;
-      const col = BALL_COLORS[throwState.powerup ?? "none"];
-      mat.color.setHex(col);
-      mat.emissive.setHex(col);
-      if (ballLightRef.current) ballLightRef.current.color.setHex(col);
+      if (throwState.powerup) {
+        const col = BALL_COLORS[throwState.powerup];
+        mat.color.setHex(col);
+        mat.emissive.setHex(col);
+        mat.emissiveIntensity = 0.5;
+        if (ballLightRef.current) ballLightRef.current.color.setHex(col);
+      } else {
+        const skin = SKIN_MAP[skinRef.current] || SKIN_MAP.classic;
+        mat.color.setHex(skin.color);
+        mat.emissive.setHex(skin.emissive);
+        mat.emissiveIntensity = skin.emissiveIntensity;
+        mat.metalness = skin.metalness;
+        mat.roughness = skin.roughness;
+        if (ballLightRef.current) ballLightRef.current.color.setHex(skin.emissive);
+      }
       ballRef.current.visible = true;
       if (reflectRef.current) {
         (reflectRef.current.material as THREE.MeshBasicMaterial).color.setHex(
-          REFLECT[throwState.powerup ?? "none"],
+          throwState.powerup ? BALL_COLORS[throwState.powerup] : (SKIN_MAP[skinRef.current] || SKIN_MAP.classic).emissive,
         );
         reflectRef.current.visible = true;
       }
@@ -281,6 +314,11 @@ export default function BowlingLane({ standing, throwState, knockdown, onArrive 
     });
     // camera shake on impact
     shakeRef.current = pu === "bomb" ? 0.28 : 0.18;
+    // Strike Cam: a fresh-rack strike knocks all 10 at once
+    if (knockdown.pins.length >= 10) {
+      cinematicRef.current = { active: true, t: 0, dur: 1.6 };
+      shakeRef.current = 0.1;
+    }
   }, [knockdown?.key]);
 
   const onContextCreate = (gl: ExpoWebGLRenderingContext) => {
@@ -496,19 +534,20 @@ export default function BowlingLane({ standing, throwState, knockdown, onArrive 
     });
 
     // ---- ball (glossy marbled, subtle glow) ----
+    const startSkin = SKIN_MAP[skinRef.current] || SKIN_MAP.classic;
     const ballMat = new THREE.MeshStandardMaterial({
-      color: 0xff5a2a,
-      emissive: 0xff5a2a,
-      emissiveIntensity: 0.28,
-      roughness: 0.12,
-      metalness: 0.4,
+      color: startSkin.color,
+      emissive: startSkin.emissive,
+      emissiveIntensity: startSkin.emissiveIntensity,
+      roughness: startSkin.roughness,
+      metalness: startSkin.metalness,
     });
     const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 32, 32), ballMat);
     ball.position.set(0, BALL_R, BALL_START_Z);
     ball.visible = false;
     scene.add(ball);
     ballRef.current = ball;
-    const bl = new THREE.PointLight(0xff5a2a, 0.9, 3.5);
+    const bl = new THREE.PointLight(startSkin.emissive, 0.9, 3.5);
     ball.add(bl);
     ballLightRef.current = bl;
     // reflection smear on the glossy lane
@@ -574,16 +613,35 @@ export default function BowlingLane({ standing, throwState, knockdown, onArrive 
         }
       }
 
-      // ---- camera shake + whoosh ----
-      shakeRef.current *= Math.exp(-dt * 7);
-      const sh = shakeRef.current;
+      // ---- camera: Strike Cam cinematic OR normal shake/whoosh ----
       const cam = cameraRef.current!;
-      cam.position.set(
-        (Math.random() - 0.5) * sh,
-        0.62 + camDy + (Math.random() - 0.5) * sh,
-        2.4 + camDz,
-      );
-      cam.lookAt((Math.random() - 0.5) * sh * 0.5, 0.34, -7.5);
+      const cine = cinematicRef.current;
+      let physicsDt = dt;
+      if (cine.active) {
+        cine.t += dt;
+        const ph = Math.min(1, cine.t / cine.dur);
+        const zoom = Math.sin(Math.PI * ph); // 0 -> 1 -> 0
+        // slow-mo strongest at the start, back to normal by ph=0.7
+        const slow = 0.3 + 0.7 * Math.min(1, ph / 0.7);
+        physicsDt = dt * slow;
+        const ix = impactRef.current.x;
+        cam.position.set(
+          (2.4 * 0 + ix * 0.5) * zoom, // ease x toward impact
+          0.62 - 0.14 * zoom,
+          2.4 - 6.4 * zoom, // dolly deep toward the pins
+        );
+        cam.lookAt(ix * 0.3 * zoom, 0.32, -8.1);
+        if (cine.t >= cine.dur) cine.active = false;
+      } else {
+        shakeRef.current *= Math.exp(-dt * 7);
+        const sh = shakeRef.current;
+        cam.position.set(
+          (Math.random() - 0.5) * sh,
+          0.62 + camDy + (Math.random() - 0.5) * sh,
+          2.4 + camDz,
+        );
+        cam.lookAt((Math.random() - 0.5) * sh * 0.5, 0.34, -7.5);
+      }
 
       // ---- pins ----
       const standingSet = standingSetRef.current;
@@ -594,10 +652,10 @@ export default function BowlingLane({ standing, throwState, knockdown, onArrive 
 
         if (p.launching) {
           if (p.delay > 0) {
-            p.delay -= dt;
+            p.delay -= physicsDt;
           } else {
-            p.vel.y -= GRAV * dt;
-            p.pos.addScaledVector(p.vel, dt);
+            p.vel.y -= GRAV * physicsDt;
+            p.pos.addScaledVector(p.vel, physicsDt);
             // floor bounce
             if (p.pos.y < 0.05) {
               p.pos.y = 0.05;
@@ -610,7 +668,7 @@ export default function BowlingLane({ standing, throwState, knockdown, onArrive 
             const angMag = p.ang.length();
             if (angMag > 0.0001) {
               tmpAxis.copy(p.ang).normalize();
-              tmpQ.setFromAxisAngle(tmpAxis, angMag * dt);
+              tmpQ.setFromAxisAngle(tmpAxis, angMag * physicsDt);
               p.group.quaternion.premultiply(tmpQ);
             }
             p.group.position.copy(p.pos);

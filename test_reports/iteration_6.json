@@ -1,0 +1,50 @@
+{
+  "summary": "Iteration 6 — Coach Voice + Rivalry Mode + Strike Cam + Ball Skins verified end-to-end. Backend pytest 20/20 PASS in ~13s (added test_cpu_rivalry_strike to test_ai_endpoints.py for the new rivalry fields — rival_name/cpu_wins/player_wins/last_result — returns non-empty {text}). Regression: players/scores/leaderboard/rooms all still 12/12 pass. Frontend @ 390x844: Ball Skins screen (/skins via nav-skins-button) renders all 4 skins (Classic Flame, Chrome, Galaxy, Neon Core) — Classic Flame is unlocked & 'Equipped' (green pill), the other three (skin-chrome/skin-galaxy/skin-neon) show a lock overlay + unlock requirement pill ('Play 3 games' / 'Score 120+ in a game' / 'Land 5 total strikes'); tapping a locked card (skin-chrome) is a no-op (Classic remains Equipped); skins-back-button returns home. Vs CPU (mode-cpu-button): opponent score pill shows a REAL RIVAL NAME (e.g., 'Neon' during play, 'Split-Happy Sasha' on Results — pulled from local rival store, NOT 'CPU'); full 10-frame game completed, routed to Results with URL params mode=cpu&oppName=Split-Happy%20Sasha&result=lose&myScore=106&oppScore=133. Coach Luna card populated with a real GPT-5.6 tip (~2s after score submit) and the NEW coach-speak-button (volume-high icon) is visible next to the 'Coach Luna says' header. home-button and play-again-button both navigate correctly. Solo full flow (lock-aim -> throw) also completes 10 frames -> /results?mode=solo&myScore=108&strikes=1&spares=2, coach-speak-button visible, play-again-button re-mounts /game (lock-aim-button reappears). Coach chat (/coach via ai-coach-button): typing 'How can I bowl better spares?' into coach-input + tapping coach-send-button returned a full GPT-5.6 paragraph (references laser/magnet power-ups) with a 'Hear it' speaker action visible on the assistant bubble; coach-back-button returns home. Regression: home/leaderboard/profile/coach/skins/game/results all boot without JS errors. ZERO console.error and ZERO PageError across ALL flows (skins, vs CPU incl. results, solo, coach chat, direct nav to /leaderboard and /profile). Strike Cam is a WebGL-only camera zoom on strikes — not DOM-assertable but no crashes observed. expo-speech Speech.speak() is invoked in results.tsx (auto on tip load) and coach.tsx (per bubble via 'Hear it'); headless Chromium is silent but no exceptions. No deprecated Expo packages detected: no expo-av / expo-barcode-scanner / expo-background-fetch imports. Pre-existing benign warnings only (Fredoka.ttf decode, RN-Web shadow*/textShadow*/pointerEvents deprecation, GPU stall ReadPixels, audio autoplay) — all carried from prior iterations.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "All screens (pre-existing, carried from iter 1-5)",
+        "issues": [
+          "Fredoka.ttf still fails to decode on web (OTS parsing error: invalid sfntVersion 168430090); RN-Web falls back to system font. Not new.",
+          "RN-Web deprecation warnings (shadow* -> boxShadow, textShadow* -> textShadow, props.pointerEvents -> style.pointerEvents). Cosmetic, pre-existing."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_super_strike_api.py",
+    "/app/backend/tests/test_ai_endpoints.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "No blocking action items. All 4 new features (Coach Voice / Rivalry Mode / Strike Cam / Ball Skins) verified live with zero JS exceptions.",
+    "OPTIONAL (unchanged from prior iterations): replace assets/fonts/Fredoka.ttf with a valid TTF; migrate remaining shadow*/textShadow*/pointerEvents style props to their non-deprecated equivalents."
+  ],
+  "critical_code_review_comments": [
+    "server.py QuipRequest: new rivalry fields (rival_name/cpu_wins/player_wins/last_result) are all Optional with sensible defaults (0/None) so existing callers stay backward-compatible; system prompt only injects rivalry history when cpu_wins or player_wins is non-zero — good.",
+    "server.py ai_quip: system prompt correctly instructs the LLM to speak in the rival's voice ('You are {rival}, the human player's recurring rival…'), keeps 14-word cap and PG guardrails; response is still trimmed/quoted-stripped/length-capped identically for both voice paths.",
+    "src/store/rival.ts: rival store persists to AsyncStorage under 'ss_rival' with initial random name from a fixed list of 8 rivals (incl. 'Neon Nikki' per spec) — DEFAULT() correctly seeds cpuWins/playerWins/ties/games/lastResult. recordRivalResult() is idempotent per call and is invoked once in results.tsx after mode==='cpu'.",
+    "src/game/skins.ts: SKINS array + isSkinUnlocked() uses stats.games/best/total_strikes gating; Classic has no unlock requirement so always unlocked — matches spec that Classic Flame is the default equipped skin. storage under 'ss_ball_skin' AsyncStorage key.",
+    "app/skins.tsx: Pressable onPress guards with 'if (!unlocked) return' before setSelectedSkin — locked tap correctly no-ops, verified live.",
+    "app/game.tsx: getSelectedSkin() is loaded on mount and passed to <BowlingLane ballSkin={ballSkin} />; getRival() only invoked when mode==='cpu' — no wasted storage read in solo. rivalName state seeds the opponent scorePill label (uses first word of rival name, sliced to 8 chars — ok since names are 2 words each).",
+    "app/results.tsx: speak(tip) is called immediately after aiCoach() resolves AND on manual coach-speak-button tap — respects isMuted() inside src/audio/speech.ts. stopSpeaking() on unmount prevents cross-screen audio leaking.",
+    "src/audio/speech.ts: try/catch around Speech.stop()/Speech.speak() protects against expo-speech failures on web where the SpeechSynthesis API may reject — good graceful degradation.",
+    "app/coach.tsx: assistant bubbles have a 'Hear it' Pressable calling speak(m.content) — verified visible on live reply.",
+    "No secrets exposed to frontend; EMERGENT_LLM_KEY stays server-side.",
+    "expo-speech is the current supported package (not the deprecated expo-av); no other deprecated packages detected."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_endpoints.py (added test_cpu_rivalry_strike — new rivalry-fields quip test)"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "seed_data_creation": "Added 1 additional TEST_session_* doc via new rivalry test; ~2 real player-scoped chat exchanges + several TEST_* players/scores from re-runs of regression tests. Existing seed data from iterations 1-5 unchanged.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend suite is now 20/20 green — run `pytest /app/backend/tests/ -v` (uses xdist 2 workers, ~13s). test_cpu_rivalry_strike hits the new rivalry code path (voice='cpu', rival_name+cpu_wins+player_wins+last_result populated). Frontend: /skins route is behind testID nav-skins-button on Home, and skins have IDs skin-classic/skin-chrome/skin-galaxy/skin-neon. On Vs CPU the opponent pill label shows rivalName.split(' ')[0].slice(0,8) so a rival named 'Neon Nikki' displays as 'Neon' in-game HUD but the FULL rival name is passed to Results.oppName param. expo-speech Speech.speak() will not produce audio in headless Chromium — only assert coach-speak-button visibility and 'Hear it' text on assistant bubbles. Strike Cam is a three.js camera zoom in BowlingLane.tsx — WebGL-only, not DOM-testable, verify via absence of red screen. Vs CPU full 10-frame game takes ~50-60 lock/throw loop iterations at ~2.5-3s per iteration; use .last on lock-aim-button and throw-button (expo-router keeps prior screens mounted). Coach tip auto-loads in ~2s on Results; give up to 15s. Ignore benign 'GPU stall ReadPixels', Fredoka.ttf sfntVersion, RN-Web shadow*/textShadow*/pointerEvents deprecations, and Chromium HTML audio autoplay 'play() failed' — all pre-existing since iter 1.",
+  "rca_of_issue": "N/A — no functional bugs found. New rivalry fields on /api/ai/quip return non-empty {text} both with and without rivalry history; Ball Skins gating (locked pills + tap no-op), rival name propagation through game HUD + Results.oppName param, and coach-speak-button/Hear it audio speaker buttons all render and are tappable; no console errors on any route."
+}
