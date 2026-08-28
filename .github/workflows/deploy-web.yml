@@ -1,0 +1,40 @@
+name: Build Super Strike Web
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-web.yml'
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Export web build
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-strike-web
+          path: frontend/dist
+          if-no-files-found: error
