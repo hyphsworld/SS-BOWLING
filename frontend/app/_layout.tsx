@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { LogBox } from "react-native";
+import { LogBox, Platform, View, ActivityIndicator } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -14,11 +14,11 @@ import { initAudio } from "@/src/audio/sounds";
 // and agent works as expected.
 LogBox.ignoreAllLogs(true);
 
-// Keep the native splash visible from cold start until icon fonts register.
-// Required because @expo/vector-icons' componentDidMount fallback fires
-// Font.loadAsync against a broken vendor path if any <Icon> mounts before
-// the family is registered — which throws on Android Expo Go.
-SplashScreen.preventAutoHideAsync();
+// Native needs the splash held until fonts register. On web, holding the
+// splash while font loading stalls can leave Safari/in-app browsers blank.
+if (Platform.OS !== "web") {
+  SplashScreen.preventAutoHideAsync();
+}
 
 export default function RootLayout() {
   const [iconsLoaded, iconsError] = useIconFonts();
@@ -30,7 +30,7 @@ export default function RootLayout() {
   const ready = (iconsLoaded || iconsError) && (fontsLoaded || fontsError);
 
   useEffect(() => {
-    if (ready) {
+    if (Platform.OS !== "web" && ready) {
       SplashScreen.hideAsync();
     }
   }, [ready]);
@@ -39,9 +39,23 @@ export default function RootLayout() {
     initAudio();
   }, []);
 
-  // If the CDN is unreachable we fall through on error rather than wedging
-  // the app — icons will tofu, but the app still boots.
-  if (!ready) return null;
+  // Never return a blank document while fonts are loading on web.
+  // Render a visible lightweight fallback, then mount the router when ready.
+  if (!ready) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          minHeight: "100%",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#08080d",
+        }}
+      >
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
