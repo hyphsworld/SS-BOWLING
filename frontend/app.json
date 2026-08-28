@@ -40,7 +40,8 @@
       "expo-asset"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/games/ss-bowling"
     }
   }
 }
