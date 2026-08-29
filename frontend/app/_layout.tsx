@@ -1,3 +1,5 @@
-import NativeRoot from "@/src/components/NativeRoot";
+import { Stack } from "expo-router";
 
-export default NativeRoot;
+export default function RootLayout() {
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
