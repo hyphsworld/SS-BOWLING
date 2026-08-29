@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { LogBox, Platform, View, ActivityIndicator } from "react-native";
+import { LogBox, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -10,14 +10,10 @@ import { useFonts } from "expo-font";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { initAudio } from "@/src/audio/sounds";
 
-// Disable logbox errors etc so that users can see the app
-// and agent works as expected.
 LogBox.ignoreAllLogs(true);
 
-// Native needs the splash held until fonts register. On web, holding the
-// splash while font loading stalls can leave Safari/in-app browsers blank.
 if (Platform.OS !== "web") {
-  SplashScreen.preventAutoHideAsync();
+  SplashScreen.preventAutoHideAsync().catch(() => {});
 }
 
 function AppShell() {
@@ -29,6 +25,19 @@ function AppShell() {
 }
 
 export default function RootLayout() {
+  // Web must never be blocked by native splash/font/audio startup work.
+  if (Platform.OS === "web") {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AppShell />
+      </GestureHandlerRootView>
+    );
+  }
+
+  return <NativeRoot />;
+}
+
+function NativeRoot() {
   const [iconsLoaded, iconsError] = useIconFonts();
   const [fontsLoaded, fontsError] = useFonts({
     Fredoka: require("../assets/fonts/Fredoka.ttf"),
@@ -38,8 +47,8 @@ export default function RootLayout() {
   const ready = (iconsLoaded || iconsError) && (fontsLoaded || fontsError);
 
   useEffect(() => {
-    if (Platform.OS !== "web" && ready) {
-      SplashScreen.hideAsync();
+    if (ready) {
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [ready]);
 
@@ -47,32 +56,8 @@ export default function RootLayout() {
     initAudio();
   }, []);
 
-  // Never return a blank document while fonts are loading on web.
-  // Render a visible lightweight fallback, then mount the router when ready.
   if (!ready) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          minHeight: "100%",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#08080d",
-        }}
-      >
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
-  // react-native-keyboard-controller is native-first and can break web startup
-  // in Safari/in-app browsers. Keep it on native, skip it entirely on web.
-  if (Platform.OS === "web") {
-    return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AppShell />
-      </GestureHandlerRootView>
-    );
+    return null;
   }
 
   return (
