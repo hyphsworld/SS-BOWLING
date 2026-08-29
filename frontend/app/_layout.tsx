@@ -20,6 +20,14 @@ if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync();
 }
 
+function AppShell() {
+  return (
+    <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SafeAreaProvider>
+  );
+}
+
 export default function RootLayout() {
   const [iconsLoaded, iconsError] = useIconFonts();
   const [fontsLoaded, fontsError] = useFonts({
@@ -57,12 +65,20 @@ export default function RootLayout() {
     );
   }
 
+  // react-native-keyboard-controller is native-first and can break web startup
+  // in Safari/in-app browsers. Keep it on native, skip it entirely on web.
+  if (Platform.OS === "web") {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AppShell />
+      </GestureHandlerRootView>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
-        <SafeAreaProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </SafeAreaProvider>
+        <AppShell />
       </KeyboardProvider>
     </GestureHandlerRootView>
   );
