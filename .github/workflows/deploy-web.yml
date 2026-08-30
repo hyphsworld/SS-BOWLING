@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feature/pop-wall-alley-gator
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-web.yml'
