@@ -17,6 +17,13 @@ import { recordRivalResult } from "@/src/store/rival";
 const TROPHY =
   "https://images.unsplash.com/photo-1578269174936-2709b6aeb913?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHx0cm9waHklMjBjYXJ0b29uJTIwd2lubmVyfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85";
 
+function fallbackCoachTip(score: number, strikes: number, spares: number) {
+  if (strikes >= 4) return "You were finding the pocket. Keep that same aim and tighten your power timing to turn those strikes into a streak.";
+  if (spares >= 2) return "Your spare game was solid. On the first ball, aim a little closer to the pocket so you leave fewer cleanup shots.";
+  if (score >= 150) return "Strong game. Keep your aim steady and lock power in the sweet zone to turn more good frames into strikes.";
+  return "Aim for the pocket between the 1 and 3 pins and lock your power in the sweet zone for a cleaner next game.";
+}
+
 export default function Results() {
   const params = useLocalSearchParams<{
     mode?: string;
@@ -38,12 +45,17 @@ export default function Results() {
   const strikes = Number(params.strikes || 0);
   const spares = Number(params.spares || 0);
 
-  const [submitting, setSubmitting] = useState(true);
   const [coachTip, setCoachTip] = useState<string | null>(null);
 
   useEffect(() => {
     const win = result === "win" || (mode === "solo" && myScore >= 150);
     playSound(win ? "win" : "spare");
+    const fallback = fallbackCoachTip(myScore, strikes, spares);
+    let cancelled = false;
+    let coachTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      if (!cancelled) setCoachTip((current) => current || fallback);
+    }, 2200);
+
     (async () => {
       try {
         const p = await ensurePlayer();
@@ -57,18 +69,35 @@ export default function Results() {
           result: result || null,
         });
       } catch (e) {}
-      setSubmitting(false);
+
       if (mode === "cpu" && (result === "win" || result === "lose" || result === "tie")) {
         recordRivalResult(result).catch(() => {});
       }
+
       try {
-        const r = await api.aiCoach({ score: myScore, strikes, spares, mode, result: result || null });
-        const tip = r?.text || null;
+        const r = await Promise.race([
+          api.aiCoach({ score: myScore, strikes, spares, mode, result: result || null }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("coach timeout")), 4500)),
+        ]);
+        if (cancelled) return;
+        const tip = r?.text?.trim() || fallback;
+        if (coachTimer) clearTimeout(coachTimer);
+        coachTimer = null;
         setCoachTip(tip);
         if (tip) speak(tip);
-      } catch (e) {}
+      } catch (e) {
+        if (cancelled) return;
+        if (coachTimer) clearTimeout(coachTimer);
+        coachTimer = null;
+        setCoachTip((current) => current || fallback);
+      }
     })();
-    return () => stopSpeaking();
+
+    return () => {
+      cancelled = true;
+      if (coachTimer) clearTimeout(coachTimer);
+      stopSpeaking();
+    };
   }, []);
 
   const isVs = mode === "cpu" || mode === "multiplayer";
@@ -103,18 +132,12 @@ export default function Results() {
             <View style={styles.vsRow}>
               <View style={styles.vsCol}>
                 <Text style={styles.vsName}>YOU</Text>
-                <Text style={[styles.vsScore, won && { color: colors.brandSecondary }]}>
-                  {myScore}
-                </Text>
+                <Text style={[styles.vsScore, won && { color: colors.brandSecondary }]}>{myScore}</Text>
               </View>
               <Text style={styles.vsDivider}>vs</Text>
               <View style={styles.vsCol}>
-                <Text style={styles.vsName} numberOfLines={1}>
-                  {oppName}
-                </Text>
-                <Text style={[styles.vsScore, !won && !tie && { color: colors.brandPrimary }]}>
-                  {oppScore}
-                </Text>
+                <Text style={styles.vsName} numberOfLines={1}>{oppName}</Text>
+                <Text style={[styles.vsScore, !won && !tie && { color: colors.brandPrimary }]}>{oppScore}</Text>
               </View>
             </View>
           ) : (
@@ -141,12 +164,7 @@ export default function Results() {
             <Ionicons name="school" size={18} color={colors.brandPrimary} />
             <Text style={styles.coachTitle}>Coach Luna says</Text>
             {coachTip && (
-              <Pressable
-                testID="coach-speak-button"
-                onPress={() => speak(coachTip)}
-                style={styles.speakBtn}
-                hitSlop={8}
-              >
+              <Pressable testID="coach-speak-button" onPress={() => speak(coachTip)} style={styles.speakBtn} hitSlop={8}>
                 <Ionicons name="volume-high" size={18} color={colors.brandPrimary} />
               </Pressable>
             )}
@@ -168,17 +186,9 @@ export default function Results() {
           label="Play Again"
           icon="refresh"
           variant="primary"
-          onPress={() =>
-            router.replace(mode === "multiplayer" ? "/multiplayer" : `/game?mode=${mode}`)
-          }
+          onPress={() => router.replace(mode === "multiplayer" ? "/multiplayer" : `/game?mode=${mode}`)}
         />
-        <PrimaryButton
-          testID="home-button"
-          label="Home"
-          icon="home"
-          variant="outline"
-          onPress={() => router.replace("/")}
-        />
+        <PrimaryButton testID="home-button" label="Home" icon="home" variant="outline" onPress={() => router.replace("/")} />
       </View>
     </View>
   );
@@ -189,24 +199,9 @@ const styles = StyleSheet.create({
   bodyScroll: { flex: 1 },
   body: { alignItems: "center", paddingHorizontal: spacing.lg, gap: spacing.lg, paddingBottom: spacing.lg },
   headline: { fontFamily: font.display, fontSize: type["4xl"], textAlign: "center" },
-  trophyWrap: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    overflow: "hidden",
-    borderWidth: 4,
-    borderColor: colors.brand,
-    ...shadow.card,
-  },
+  trophyWrap: { width: 160, height: 160, borderRadius: 80, overflow: "hidden", borderWidth: 4, borderColor: colors.brand, ...shadow.card },
   trophy: { width: "100%", height: "100%" },
-  scoreCard: {
-    width: "100%",
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    gap: spacing.lg,
-    ...shadow.card,
-  },
+  scoreCard: { width: "100%", backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.lg, ...shadow.card },
   vsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   vsCol: { alignItems: "center", flex: 1 },
   vsName: { fontFamily: font.display, fontSize: type.lg, color: colors.onSurfaceSecondary },
@@ -216,26 +211,9 @@ const styles = StyleSheet.create({
   soloLabel: { fontFamily: font.display, fontSize: type.base, color: colors.onSurfaceSecondary, letterSpacing: 2 },
   soloValue: { fontFamily: font.display, fontSize: 72, color: colors.onSurface },
   statsRow: { flexDirection: "row", gap: spacing.md, justifyContent: "center" },
-  statChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
+  statChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   statText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
-  coachCard: {
-    width: "100%",
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    borderWidth: 1.5,
-    borderColor: colors.brandPrimary,
-    ...shadow.card,
-  },
+  coachCard: { width: "100%", backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1.5, borderColor: colors.brandPrimary, ...shadow.card },
   coachHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   coachTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.brandPrimary },
   speakBtn: { marginLeft: "auto", padding: 4 },
