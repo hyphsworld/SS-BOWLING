@@ -6,9 +6,19 @@ on:
     branches:
       - main
       - feature/pop-wall-alley-gator
+      - preview/audio-mobile
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-web.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-preview"
+  cancel-in-progress: true
 
 jobs:
   build-web:
@@ -37,3 +47,25 @@ jobs:
           name: super-strike-web
           path: frontend/dist
           if-no-files-found: error
+
+      - name: Configure Pages
+        if: github.ref == 'refs/heads/preview/audio-mobile'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/preview/audio-mobile'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy-preview:
+    if: github.ref == 'refs/heads/preview/audio-mobile'
+    needs: build-web
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy preview to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
