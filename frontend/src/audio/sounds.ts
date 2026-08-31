@@ -29,6 +29,8 @@ const VOLUMES: Partial<Record<SoundName, number>> = {
   ball_roll: 0.5,
   tap: 0.5,
   lock: 0.7,
+  strike: 1.0,
+  gutter: 1.0,
 };
 
 const MUTE_KEY = "ss_sound_muted";
