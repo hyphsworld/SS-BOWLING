@@ -1,5 +1,6 @@
 import { Stack, usePathname } from "expo-router";
 import LaneHazardOverlay from "@/src/components/LaneHazardOverlay.web";
+import PopWall3D from "@/src/components/PopWall3D.web";
 
 export default function WebRootLayout() {
   const pathname = usePathname();
@@ -8,7 +9,12 @@ export default function WebRootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
-      {isGameRoute ? <LaneHazardOverlay /> : null}
+      {isGameRoute ? (
+        <>
+          <PopWall3D />
+          <LaneHazardOverlay />
+        </>
+      ) : null}
     </>
   );
 }
