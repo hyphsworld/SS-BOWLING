@@ -24,13 +24,10 @@ export const POP_WALL = {
 export function popWallOutcome(powerup: PowerUpId | null, ballX: number, wallX: number) {
   const hit = Math.abs(ballX - wallX) < POP_WALL.width * 0.52;
   if (!hit) return { blocked: false, smashed: false, bypassed: true };
-  if (powerup === "giant" || powerup === "muscle" || powerup === "bomb") {
+  if (powerup === "bomb") {
     return { blocked: false, smashed: true, bypassed: true };
   }
   if (powerup === "lightning") {
-    return { blocked: false, smashed: false, bypassed: true };
-  }
-  if (powerup === "magnet") {
     return { blocked: false, smashed: false, bypassed: true };
   }
   return { blocked: true, smashed: false, bypassed: false };
