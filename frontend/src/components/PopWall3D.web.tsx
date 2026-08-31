@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { popWallOutcome } from "@/src/game/hazards";
+import { popWallOutcome, setWebHazardActive } from "@/src/game/hazards";
 import type { PowerUpId } from "@/src/game/powerups";
 
 const WALL_Z = -3.7;
@@ -52,6 +52,7 @@ export default function PopWall3D() {
 
   useEffect(() => {
     const host = hostRef.current; if (!host) return;
+    setWebHazardActive("pop-wall", false);
     const width = Math.max(1, host.clientWidth || window.innerWidth);
     const height = Math.max(1, host.clientHeight || window.innerHeight);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
@@ -98,6 +99,7 @@ export default function PopWall3D() {
       if (!(phase === "rise" || phase === "hold")) return;
       const outcome = popWallOutcome(detail.powerup, detail.ballX, 0);
       if (outcome.smashed) {
+        setWebHazardActive("pop-wall", false);
         phase = "smashed";
         phaseStart = performance.now();
         debris.visible = true;
@@ -119,11 +121,11 @@ export default function PopWall3D() {
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate); const now = performance.now();
       const dt = 1 / 60;
-      if (phase === "idle" && now >= nextAt) { phase = "warning"; phaseStart = now; rig.visible = false; rig.position.set(0, WALL_HIDDEN_Y, WALL_Z); }
+      if (phase === "idle" && now >= nextAt) { phase = "warning"; phaseStart = now; setWebHazardActive("pop-wall", false); rig.visible = false; rig.position.set(0, WALL_HIDDEN_Y, WALL_Z); }
       if (phase === "warning") {
         const t = Math.min(1, (now - phaseStart) / WARNING_MS); warnLight.intensity = 2.5 + Math.abs(Math.sin(t * Math.PI * 7)) * 5;
         slot.scale.z = 1 + Math.abs(Math.sin(t * Math.PI * 7)) * 0.12;
-        if (t >= 1) { phase = "rise"; phaseStart = now; rig.visible = true; warnLight.intensity = 5; }
+        if (t >= 1) { phase = "rise"; phaseStart = now; setWebHazardActive("pop-wall", true); rig.visible = true; warnLight.intensity = 5; }
       } else if (phase === "rise") {
         const t = Math.min(1, (now - phaseStart) / RISE_MS); rig.position.y = WALL_HIDDEN_Y + easeOutBack(t) * (WALL_UP_Y - WALL_HIDDEN_Y); rig.position.x = 0; rig.position.z = WALL_Z; rig.rotation.z = Math.sin(t * Math.PI * 5) * 0.012;
         if (t >= 1) { rig.position.set(0, WALL_UP_Y, WALL_Z); rig.rotation.z = 0; phase = "hold"; phaseStart = now; }
@@ -131,7 +133,7 @@ export default function PopWall3D() {
         const t = Math.min(1, (now - phaseStart) / HOLD_MS); rig.position.y = WALL_UP_Y + Math.sin(t * Math.PI * 10) * 0.006; rig.position.z = WALL_Z; warnLight.intensity = 2 + Math.abs(Math.sin(t * Math.PI * 8)) * 4;
         if (impactPulse > 0.01) { impactPulse *= 0.88; rig.position.x = (Math.random() - 0.5) * impactPulse * 0.10; rig.rotation.z = (Math.random() - 0.5) * impactPulse * 0.06; }
         else { rig.position.x = 0; rig.rotation.z *= 0.75; }
-        if (t >= 1) { phase = "retract"; phaseStart = now; rig.position.x = 0; rig.rotation.z = 0; }
+        if (t >= 1) { setWebHazardActive("pop-wall", false); phase = "retract"; phaseStart = now; rig.position.x = 0; rig.rotation.z = 0; }
       } else if (phase === "smashed") {
         const t = Math.min(1, (now - phaseStart) / 700);
         debris.children.forEach((c: any) => {
@@ -149,7 +151,7 @@ export default function PopWall3D() {
     }; animate();
     const resize = () => { const w = Math.max(1, host.clientWidth || window.innerWidth), h = Math.max(1, host.clientHeight || window.innerHeight); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); };
     window.addEventListener("resize", resize);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); window.removeEventListener("resize", resize); window.removeEventListener("super-strike-hazard", onImpact as EventListener); scene.traverse((o:any)=>{o.geometry?.dispose?.(); if(o.material){if(Array.isArray(o.material))o.material.forEach((m:any)=>m.dispose?.());else o.material.dispose?.();}}); faceTex.dispose(); renderer.dispose(); try{host.removeChild(renderer.domElement);}catch{} };
+    return () => { setWebHazardActive("pop-wall", false); if (rafRef.current) cancelAnimationFrame(rafRef.current); window.removeEventListener("resize", resize); window.removeEventListener("super-strike-hazard", onImpact as EventListener); scene.traverse((o:any)=>{o.geometry?.dispose?.(); if(o.material){if(Array.isArray(o.material))o.material.forEach((m:any)=>m.dispose?.());else o.material.dispose?.();}}); faceTex.dispose(); renderer.dispose(); try{host.removeChild(renderer.domElement);}catch{} };
   }, []);
   return <div ref={hostRef} style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none" }} />;
 }
