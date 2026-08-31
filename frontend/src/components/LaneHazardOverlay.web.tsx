@@ -7,28 +7,22 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-
-type Hazard = "pop-wall" | "alley-gator" | null;
+import { setWebHazardActive } from "@/src/game/hazards";
 
 export default function LaneHazardOverlay() {
-  const [hazard, setHazard] = useState<Hazard>(null);
+  const [visible, setVisible] = useState(false);
   const [warning, setWarning] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const gatorX = useSharedValue(130);
   const warningPulse = useSharedValue(0.55);
 
-  const emitState = (id: Hazard, active: boolean) => {
-    window.dispatchEvent(new CustomEvent("super-strike-hazard-state", { detail: { id, active } }));
-  };
-
   const schedule = () => {
     const wait = 12000 + Math.floor(Math.random() * 7000);
     timerRef.current = setTimeout(() => {
-      const next: Hazard = "alley-gator";
-      setHazard(next);
+      setVisible(true);
       setWarning(true);
-      emitState(next, false);
+      setWebHazardActive("alley-gator", false);
       warningPulse.value = withSequence(
         withTiming(1, { duration: 160 }),
         withTiming(0.55, { duration: 160 }),
@@ -38,7 +32,7 @@ export default function LaneHazardOverlay() {
 
       cleanupRef.current.push(setTimeout(() => {
         setWarning(false);
-        emitState(next, true);
+        setWebHazardActive("alley-gator", true);
         gatorX.value = 130;
         gatorX.value = withSequence(
           withTiming(0, { duration: 220, easing: Easing.out(Easing.back(1.2)) }),
@@ -50,8 +44,8 @@ export default function LaneHazardOverlay() {
         );
 
         cleanupRef.current.push(setTimeout(() => {
-          emitState(next, false);
-          setHazard(null);
+          setWebHazardActive("alley-gator", false);
+          setVisible(false);
           schedule();
         }, 1300));
       }, 900));
@@ -63,14 +57,14 @@ export default function LaneHazardOverlay() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       cleanupRef.current.forEach(clearTimeout);
-      emitState("alley-gator", false);
+      setWebHazardActive("alley-gator", false);
     };
   }, []);
 
   const gatorStyle = useAnimatedStyle(() => ({ transform: [{ translateX: gatorX.value }] }));
   const warningStyle = useAnimatedStyle(() => ({ opacity: warningPulse.value }));
 
-  if (!hazard) return null;
+  if (!visible) return null;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -82,7 +76,7 @@ export default function LaneHazardOverlay() {
         </Animated.View>
       )}
 
-      {hazard === "alley-gator" && !warning && (
+      {!warning && (
         <Animated.View style={[styles.gatorWrap, gatorStyle]}>
           <View style={styles.gatorHead}>
             <Text style={styles.gatorEyes}>👀</Text>
