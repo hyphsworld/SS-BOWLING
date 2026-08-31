@@ -11,6 +11,14 @@ export interface HazardState {
   durationMs: number;
 }
 
+type WebHazardRegistry = Partial<Record<HazardId, boolean>>;
+
+declare global {
+  interface Window {
+    __superStrikeHazards?: WebHazardRegistry;
+  }
+}
+
 export const POP_WALL = {
   id: "pop-wall" as const,
   z: -3.7,
@@ -21,14 +29,33 @@ export const POP_WALL = {
   retractMs: 320,
 };
 
+export const ALLEY_GATOR = {
+  id: "alley-gator" as const,
+  z: -3.7,
+  width: 1.55,
+};
+
+export function setWebHazardActive(id: HazardId, active: boolean) {
+  if (typeof window === "undefined") return;
+  window.__superStrikeHazards = { ...(window.__superStrikeHazards || {}), [id]: active };
+  window.dispatchEvent(new CustomEvent("super-strike-hazard-state", { detail: { id, active } }));
+}
+
+export function activeWebHazard(): HazardId | null {
+  if (typeof window === "undefined") return null;
+  if (window.__superStrikeHazards?.["pop-wall"]) return "pop-wall";
+  if (window.__superStrikeHazards?.["alley-gator"]) return "alley-gator";
+  return null;
+}
+
 export function popWallOutcome(powerup: PowerUpId | null, ballX: number, wallX: number) {
-  const hit = Math.abs(ballX - wallX) < POP_WALL.width * 0.52;
+  const active = activeWebHazard();
+  if (!active) return { blocked: false, smashed: false, bypassed: true };
+
+  const width = active === "alley-gator" ? ALLEY_GATOR.width : POP_WALL.width;
+  const hit = Math.abs(ballX - wallX) < width * 0.52;
   if (!hit) return { blocked: false, smashed: false, bypassed: true };
-  if (powerup === "bomb") {
-    return { blocked: false, smashed: true, bypassed: true };
-  }
-  if (powerup === "lightning") {
-    return { blocked: false, smashed: false, bypassed: true };
-  }
+  if (powerup === "bomb") return { blocked: false, smashed: true, bypassed: true };
+  if (powerup === "lightning") return { blocked: false, smashed: false, bypassed: true };
   return { blocked: true, smashed: false, bypassed: false };
 }
