@@ -184,8 +184,7 @@ export default function Game() {
       playSound("pin_crash");
       setTimeout(() => playSound("pin_knock"), 140);
     }
-    if (res.isStrike) playSound("strike");
-    else if (res.isSpare) playSound("spare");
+    if (res.isSpare) playSound("spare");
     else if (res.knockedCount === 0) playSound("gutter");
 
     showBanner(res);
