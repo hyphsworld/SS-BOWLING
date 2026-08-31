@@ -31,8 +31,9 @@ import { getRival, Rival } from "@/src/store/rival";
 import { getSelectedSkin } from "@/src/game/skins";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const FRAME_BREAK_MS = 2600;
 
-type Phase = "aim" | "power" | "rolling" | "cpu" | "over";
+type Phase = "aim" | "power" | "rolling" | "intermission" | "cpu" | "over";
 type Owner = "me" | "opp";
 
 interface Pending {
@@ -61,7 +62,9 @@ export default function Game() {
   const [banner, setBanner] = useState<string | null>(null);
   const [oppRemote, setOppRemote] = useState<{ name: string; score: number; finished: boolean } | null>(null);
   const [quip, setQuip] = useState<{ text: string; voice: "commentator" | "cpu" } | null>(null);
+  const [intermissionText, setIntermissionText] = useState<string | null>(null);
   const quipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intermissionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEvent = useRef<"strike" | "spare" | "gutter" | "open">("open");
 
   const armedAim = useRef(0);
@@ -105,7 +108,10 @@ export default function Game() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => () => quipTimer.current && clearTimeout(quipTimer.current), []);
+  useEffect(() => () => {
+    if (quipTimer.current) clearTimeout(quipTimer.current);
+    if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
+  }, []);
 
   const showBanner = (res: ThrowResult) => {
     let text: string | null = null;
@@ -149,6 +155,17 @@ export default function Game() {
     return () => clearInterval(iv);
   }, [mode, code]);
 
+  const beginIntermission = (res: ThrowResult) => {
+    setPhase("intermission");
+    const nextFrame = Math.min(meRef.current.currentFrame + 1, 10);
+    setIntermissionText(res.isStrike ? `STRIKE! • FRAME ${nextFrame} NEXT` : res.isSpare ? `SPARE! • FRAME ${nextFrame} NEXT` : res.knockedCount === 0 ? `GUTTER • FRAME ${nextFrame} NEXT` : `FRAME ${nextFrame} NEXT`);
+    if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
+    intermissionTimer.current = setTimeout(() => {
+      setIntermissionText(null);
+      afterPlayerThrow(res);
+    }, FRAME_BREAK_MS);
+  };
+
   const finishResolvedThrow = (res: ThrowResult, owner: Owner) => {
     showBanner(res);
     force();
@@ -156,12 +173,13 @@ export default function Game() {
       const event = res.isStrike ? "strike" : res.isSpare ? "spare" : res.knockedCount === 0 ? "gutter" : "open";
       lastEvent.current = event;
       if (event !== "open") showQuip("commentator", event, res.knockedCount);
-      setTimeout(() => afterPlayerThrow(res), 950);
+      if (res.frameEnded && !meRef.current.done) beginIntermission(res);
+      else setTimeout(() => afterPlayerThrow(res), 950);
     }
     if (arriveResolver.current) {
       const r = arriveResolver.current;
       arriveResolver.current = null;
-      setTimeout(r, 950);
+      setTimeout(r, res.frameEnded ? FRAME_BREAK_MS : 950);
     }
   };
 
@@ -302,12 +320,22 @@ export default function Game() {
         <View style={styles.scorecardPanel}><Scorecard frames={activeGame.frames} currentFrame={activeGame.currentFrame} dark testID="scorecard" /></View>
       </View>
       {banner && <Celebration text={banner} />}
+      {phase === "intermission" && intermissionText && (
+        <View pointerEvents="none" style={styles.intermissionWrap}>
+          <View style={styles.intermissionCard}>
+            <Text style={styles.intermissionKicker}>SUPER STRIKE BREAK</Text>
+            <Text style={styles.intermissionMain}>{intermissionText}</Text>
+            <View style={styles.intermissionDots}><View style={styles.dot} /><View style={styles.dot} /><View style={styles.dot} /></View>
+          </View>
+        </View>
+      )}
       {quip && <View style={[styles.quipWrap, { top: insets.top + 150 }]} pointerEvents="none"><View style={styles.quipPill}><Ionicons name={quip.voice === "cpu" ? "hardware-chip" : "mic"} size={16} color={quip.voice === "cpu" ? colors.brandPrimary : colors.brand} /><Text style={styles.quipText} numberOfLines={2}>{quip.text}</Text></View></View>}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing.sm }]}>
         <Glass style={styles.controlPanel} intensity={45} tint="dark">
           <View style={styles.panelInner}>
             {phase === "cpu" && <Animated.View entering={FadeIn} style={styles.statusRow}><Ionicons name="hardware-chip" size={20} color={colors.brandPrimary} /><Text style={styles.statusText}>CPU is bowling…</Text></Animated.View>}
             {phase === "rolling" && <View style={styles.statusRow}><Ionicons name="disc" size={20} color={colors.onSurface} /><Text style={styles.statusText}>Rolling…</Text></View>}
+            {phase === "intermission" && <View style={styles.statusRow}><Ionicons name="hourglass" size={20} color={colors.brandSecondary} /><Text style={styles.statusText}>Resetting the lane…</Text></View>}
             {phase === "over" && <View style={styles.statusRow}><Ionicons name="hourglass" size={20} color={colors.brandPrimary} /><Text style={styles.statusText}>Waiting for {oppRemote?.name ?? "opponent"} to finish…</Text></View>}
             {isMyTurn && <><PowerUpTray energy={meRef.current.energy} armed={armed} onArm={setArmed} disabled={phase !== "aim"} /><TimingMeters phase={phase === "aim" ? "aim" : phase === "power" ? "power" : "idle"} onLockAim={onLockAim} onLockPower={onLockPower} /></>}
           </View>
@@ -336,6 +364,12 @@ const styles = StyleSheet.create({
   panelInner: { padding: spacing.md, gap: spacing.md },
   statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingVertical: spacing.md },
   statusText: { fontFamily: font.display, fontSize: type.lg, color: "#EAF7FF" },
+  intermissionWrap: { position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xl },
+  intermissionCard: { width: "100%", maxWidth: 420, backgroundColor: "rgba(4,10,24,0.92)", borderRadius: radius.lg, borderWidth: 2, borderColor: "rgba(34,225,255,0.72)", paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, alignItems: "center", ...shadow.card },
+  intermissionKicker: { fontFamily: font.display, fontSize: type.sm, color: colors.brandSecondary, letterSpacing: 1.4 },
+  intermissionMain: { marginTop: spacing.xs, fontFamily: font.display, fontSize: type.xl, color: "#FFFFFF", textAlign: "center" },
+  intermissionDots: { marginTop: spacing.md, flexDirection: "row", gap: spacing.sm },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand },
   quipWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, alignItems: "center" },
   quipPill: { flexDirection: "row", alignItems: "center", gap: spacing.sm, maxWidth: "100%", backgroundColor: "rgba(10,12,20,0.9)", borderRadius: radius.lg, borderWidth: 1, borderColor: "rgba(34,225,255,0.4)", paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadow.card },
   quipText: { flexShrink: 1, fontFamily: font.text, fontWeight: "700", fontSize: type.base, color: "#EAF7FF" },
