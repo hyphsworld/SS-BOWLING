@@ -8,21 +8,43 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { setWebHazardActive } from "@/src/game/hazards";
+import type { PowerUpId } from "@/src/game/powerups";
+
+type HazardBridgePayload = {
+  type: "pop-wall-impact";
+  powerup: PowerUpId | null;
+  ballX: number;
+};
 
 export default function LaneHazardOverlay() {
   const [visible, setVisible] = useState(false);
   const [warning, setWarning] = useState(false);
+  const [impactText, setImpactText] = useState("GATOR GOT IT!");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const activeRef = useRef(false);
   const gatorX = useSharedValue(130);
+  const gatorScale = useSharedValue(1);
+  const gatorRotate = useSharedValue(0);
+  const gatorOpacity = useSharedValue(1);
   const warningPulse = useSharedValue(0.55);
+
+  const clearCycle = () => {
+    cleanupRef.current.forEach(clearTimeout);
+    cleanupRef.current = [];
+  };
 
   const schedule = () => {
     const wait = 12000 + Math.floor(Math.random() * 7000);
     timerRef.current = setTimeout(() => {
       setVisible(true);
       setWarning(true);
+      setImpactText("GATOR GOT IT!");
+      activeRef.current = false;
       setWebHazardActive("alley-gator", false);
+      gatorScale.value = 1;
+      gatorRotate.value = 0;
+      gatorOpacity.value = 1;
       warningPulse.value = withSequence(
         withTiming(1, { duration: 160 }),
         withTiming(0.55, { duration: 160 }),
@@ -32,6 +54,7 @@ export default function LaneHazardOverlay() {
 
       cleanupRef.current.push(setTimeout(() => {
         setWarning(false);
+        activeRef.current = true;
         setWebHazardActive("alley-gator", true);
         gatorX.value = 130;
         gatorX.value = withSequence(
@@ -40,10 +63,12 @@ export default function LaneHazardOverlay() {
           withTiming(12, { duration: 90 }),
           withTiming(-4, { duration: 80 }),
           withTiming(0, { duration: 80 }),
+          withTiming(0, { duration: 350 }),
           withTiming(130, { duration: 360, easing: Easing.in(Easing.quad) }),
         );
 
         cleanupRef.current.push(setTimeout(() => {
+          activeRef.current = false;
           setWebHazardActive("alley-gator", false);
           setVisible(false);
           schedule();
@@ -53,15 +78,61 @@ export default function LaneHazardOverlay() {
   };
 
   useEffect(() => {
+    const onImpact = (event: Event) => {
+      const detail = (event as CustomEvent<HazardBridgePayload>).detail;
+      if (!detail || detail.type !== "pop-wall-impact" || !activeRef.current) return;
+
+      if (detail.powerup === "bomb") {
+        activeRef.current = false;
+        setWebHazardActive("alley-gator", false);
+        clearCycle();
+        setImpactText("BOOM! GATOR SMASHED");
+        gatorScale.value = withSequence(
+          withTiming(1.25, { duration: 90 }),
+          withTiming(0.78, { duration: 100 }),
+        );
+        gatorRotate.value = withSequence(
+          withTiming(-12, { duration: 70 }),
+          withTiming(16, { duration: 70 }),
+          withTiming(-22, { duration: 90 }),
+        );
+        gatorOpacity.value = withTiming(0, { duration: 260 });
+        cleanupRef.current.push(setTimeout(() => {
+          setVisible(false);
+          schedule();
+        }, 320));
+      } else if (detail.powerup === "lightning") {
+        setImpactText("LIGHTNING GOT THROUGH!");
+        gatorScale.value = withSequence(withTiming(1.08, { duration: 80 }), withTiming(1, { duration: 120 }));
+      } else {
+        setImpactText("GATOR GOT IT!");
+        gatorRotate.value = withSequence(
+          withTiming(-7, { duration: 55 }),
+          withTiming(7, { duration: 55 }),
+          withTiming(0, { duration: 70 }),
+        );
+      }
+    };
+
+    window.addEventListener("super-strike-hazard", onImpact as EventListener);
     schedule();
     return () => {
+      window.removeEventListener("super-strike-hazard", onImpact as EventListener);
       if (timerRef.current) clearTimeout(timerRef.current);
-      cleanupRef.current.forEach(clearTimeout);
+      clearCycle();
+      activeRef.current = false;
       setWebHazardActive("alley-gator", false);
     };
   }, []);
 
-  const gatorStyle = useAnimatedStyle(() => ({ transform: [{ translateX: gatorX.value }] }));
+  const gatorStyle = useAnimatedStyle(() => ({
+    opacity: gatorOpacity.value,
+    transform: [
+      { translateX: gatorX.value },
+      { scale: gatorScale.value },
+      { rotate: `${gatorRotate.value}deg` },
+    ],
+  }));
   const warningStyle = useAnimatedStyle(() => ({ opacity: warningPulse.value }));
 
   if (!visible) return null;
@@ -82,7 +153,7 @@ export default function LaneHazardOverlay() {
             <Text style={styles.gatorEyes}>👀</Text>
             <Text style={styles.gatorEmoji}>🐊</Text>
             <Text style={styles.gatorLabel}>ALLEY-GATOR</Text>
-            <Text style={styles.gatorGotIt}>GATOR GOT IT!</Text>
+            <Text style={styles.gatorGotIt}>{impactText}</Text>
           </View>
         </Animated.View>
       )}
@@ -127,5 +198,5 @@ const styles = StyleSheet.create({
   gatorEyes: { fontSize: 17, marginBottom: -8 },
   gatorEmoji: { fontSize: 55, lineHeight: 62 },
   gatorLabel: { color: "#dfffca", fontWeight: "900", fontSize: 13, letterSpacing: 0.8 },
-  gatorGotIt: { color: "#ffd34d", fontWeight: "900", fontSize: 11, marginTop: 2 },
+  gatorGotIt: { color: "#ffd34d", fontWeight: "900", fontSize: 11, marginTop: 2, textAlign: "center" },
 });
