@@ -6,6 +6,7 @@ export type SoundName =
   | "lock"
   | "ball_roll"
   | "pin_crash"
+  | "pin_knock"
   | "strike"
   | "spare"
   | "gutter"
@@ -18,6 +19,7 @@ const SOURCES: Record<SoundName, number> = {
   lock: require("../../assets/sounds/lock.wav"),
   ball_roll: require("../../assets/sounds/ball_roll.wav"),
   pin_crash: require("../../assets/sounds/pin_crash.wav"),
+  pin_knock: require("../../assets/sounds/pin_knock.mp3"),
   strike: require("../../assets/sounds/strike.wav"),
   spare: require("../../assets/sounds/spare.wav"),
   gutter: require("../../assets/sounds/gutter.wav"),
@@ -26,10 +28,12 @@ const SOURCES: Record<SoundName, number> = {
 };
 
 const VOLUMES: Partial<Record<SoundName, number>> = {
-  ball_roll: 0.5,
+  ball_roll: 0.6,
+  pin_crash: 1.0,
+  pin_knock: 0.62,
   tap: 0.5,
   lock: 0.7,
-  strike: 1.0,
+  strike: 0.82,
   gutter: 1.0,
 };
 
