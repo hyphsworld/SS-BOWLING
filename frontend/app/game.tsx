@@ -18,6 +18,7 @@ import { POWERUPS, PowerUpId } from "@/src/game/powerups";
 import {
   newGame,
   applyThrow,
+  applyGutterThrow,
   scoreGame,
   countStrikes,
   countSpares,
@@ -58,11 +59,7 @@ export default function Game() {
   const [throwState, setThrowState] = useState<ThrowState | null>(null);
   const [knockdown, setKnockdown] = useState<{ key: number; pins: number[] } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
-  const [oppRemote, setOppRemote] = useState<{
-    name: string;
-    score: number;
-    finished: boolean;
-  } | null>(null);
+  const [oppRemote, setOppRemote] = useState<{ name: string; score: number; finished: boolean } | null>(null);
   const [quip, setQuip] = useState<{ text: string; voice: "commentator" | "cpu" } | null>(null);
   const quipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEvent = useRef<"strike" | "spare" | "gutter" | "open">("open");
@@ -79,47 +76,34 @@ export default function Game() {
   const [ballSkin, setBallSkin] = useState("classic");
 
   useEffect(() => {
-    ensurePlayer()
-      .then((p) => {
-        identity.current = p;
-      })
-      .catch(() => {});
+    ensurePlayer().then((p) => { identity.current = p; }).catch(() => {});
     getSelectedSkin().then(setBallSkin);
     if (mode === "cpu") {
-      getRival().then((r) => {
-        rivalRef.current = r;
-        setRivalName(r.name);
-      });
+      getRival().then((r) => { rivalRef.current = r; setRivalName(r.name); });
     }
   }, []);
 
   const activeGame = active === "me" ? meRef.current : oppRef.current;
 
-  const showQuip = useCallback(
-    (voice: "commentator" | "cpu", event: "strike" | "spare" | "gutter" | "open", knocked: number) => {
-      const r = rivalRef.current;
-      api
-        .aiQuip({
-          voice,
-          event,
-          knocked,
-          frame: meRef.current.currentFrame + 1,
-          opp_name: identity.current.name,
-          rival_name: voice === "cpu" ? r?.name : undefined,
-          cpu_wins: voice === "cpu" ? r?.cpuWins ?? 0 : undefined,
-          player_wins: voice === "cpu" ? r?.playerWins ?? 0 : undefined,
-          last_result: voice === "cpu" ? r?.lastResult ?? undefined : undefined,
-        })
-        .then((res) => {
-          if (!res?.text) return;
-          setQuip({ text: res.text, voice });
-          if (quipTimer.current) clearTimeout(quipTimer.current);
-          quipTimer.current = setTimeout(() => setQuip(null), 4200);
-        })
-        .catch(() => {});
-    },
-    [],
-  );
+  const showQuip = useCallback((voice: "commentator" | "cpu", event: "strike" | "spare" | "gutter" | "open", knocked: number) => {
+    const r = rivalRef.current;
+    api.aiQuip({
+      voice,
+      event,
+      knocked,
+      frame: meRef.current.currentFrame + 1,
+      opp_name: identity.current.name,
+      rival_name: voice === "cpu" ? r?.name : undefined,
+      cpu_wins: voice === "cpu" ? r?.cpuWins ?? 0 : undefined,
+      player_wins: voice === "cpu" ? r?.playerWins ?? 0 : undefined,
+      last_result: voice === "cpu" ? r?.lastResult ?? undefined : undefined,
+    }).then((res) => {
+      if (!res?.text) return;
+      setQuip({ text: res.text, voice });
+      if (quipTimer.current) clearTimeout(quipTimer.current);
+      quipTimer.current = setTimeout(() => setQuip(null), 4200);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => () => quipTimer.current && clearTimeout(quipTimer.current), []);
 
@@ -130,32 +114,27 @@ export default function Game() {
     else if (res.knockedCount === 0) text = "GUTTER";
     if (text) {
       setBanner(text);
-      if (res.isStrike) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
+      if (res.isStrike) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setTimeout(() => setBanner(null), 1100);
     }
   };
 
-  const postProgress = useCallback(
-    async (finished: boolean) => {
-      if (mode !== "multiplayer" || !code) return;
-      const score = scoreGame(meRef.current.frames).total;
-      try {
-        const room = await api.updateProgress(code, {
-          player_id: identity.current.id,
-          name: identity.current.name,
-          score,
-          current_frame: meRef.current.currentFrame,
-          finished,
-        });
-        const opp = room.players.find((p) => p.id !== identity.current.id);
-        if (opp) setOppRemote({ name: opp.name, score: opp.score, finished: opp.finished });
-        if (room.status === "finished" && meRef.current.done) finishMultiplayer(room.winner);
-      } catch (e) {}
-    },
-    [mode, code],
-  );
+  const postProgress = useCallback(async (finished: boolean) => {
+    if (mode !== "multiplayer" || !code) return;
+    const score = scoreGame(meRef.current.frames).total;
+    try {
+      const room = await api.updateProgress(code, {
+        player_id: identity.current.id,
+        name: identity.current.name,
+        score,
+        current_frame: meRef.current.currentFrame,
+        finished,
+      });
+      const opp = room.players.find((p) => p.id !== identity.current.id);
+      if (opp) setOppRemote({ name: opp.name, score: opp.score, finished: opp.finished });
+      if (room.status === "finished" && meRef.current.done) finishMultiplayer(room.winner);
+    } catch (e) {}
+  }, [mode, code]);
 
   useEffect(() => {
     if (mode !== "multiplayer" || !code) return;
@@ -169,6 +148,22 @@ export default function Game() {
     }, 2500);
     return () => clearInterval(iv);
   }, [mode, code]);
+
+  const finishResolvedThrow = (res: ThrowResult, owner: Owner) => {
+    showBanner(res);
+    force();
+    if (owner === "me") {
+      const event = res.isStrike ? "strike" : res.isSpare ? "spare" : res.knockedCount === 0 ? "gutter" : "open";
+      lastEvent.current = event;
+      if (event !== "open") showQuip("commentator", event, res.knockedCount);
+      setTimeout(() => afterPlayerThrow(res), 950);
+    }
+    if (arriveResolver.current) {
+      const r = arriveResolver.current;
+      arriveResolver.current = null;
+      setTimeout(r, 950);
+    }
+  };
 
   const onArrive = () => {
     const p = pending.current;
@@ -187,25 +182,20 @@ export default function Game() {
     if (res.isSpare) playSound("spare");
     else if (res.knockedCount === 0) playSound("gutter");
 
-    showBanner(res);
-    force();
-    if (p.owner === "me") {
-      const event = res.isStrike
-        ? "strike"
-        : res.isSpare
-          ? "spare"
-          : res.knockedCount === 0
-            ? "gutter"
-            : "open";
-      lastEvent.current = event;
-      if (event !== "open") showQuip("commentator", event, res.knockedCount);
-      setTimeout(() => afterPlayerThrow(res), 950);
-    }
-    if (arriveResolver.current) {
-      const r = arriveResolver.current;
-      arriveResolver.current = null;
-      setTimeout(r, 950);
-    }
+    finishResolvedThrow(res, p.owner);
+  };
+
+  const onHazardBlocked = () => {
+    const p = pending.current;
+    if (!p) return;
+    const g = p.owner === "me" ? meRef.current : oppRef.current;
+    const res = applyGutterThrow(g, p.pu);
+    pending.current = null;
+    setArmed(null);
+    setKnockdown({ key: throwKey.current, pins: [] });
+    stopSound("ball_roll");
+    playSound("gutter");
+    finishResolvedThrow(res, p.owner);
   };
 
   const triggerThrow = (owner: Owner, aim: number, power: number, pu: PowerUpId | null) => {
@@ -216,50 +206,30 @@ export default function Game() {
     setThrowState({ key: throwKey.current, aim, powerup: pu });
   };
 
-  const onLockAim = (aim: number) => {
-    armedAim.current = aim;
-    setPhase("power");
-  };
-  const onLockPower = (power: number) => {
-    setPhase("rolling");
-    triggerThrow("me", armedAim.current, power, armed);
-  };
-
-  const resetNext = () => {
-    setActive("me");
-    setPhase("aim");
-  };
+  const onLockAim = (aim: number) => { armedAim.current = aim; setPhase("power"); };
+  const onLockPower = (power: number) => { setPhase("rolling"); triggerThrow("me", armedAim.current, power, armed); };
+  const resetNext = () => { setActive("me"); setPhase("aim"); };
 
   const afterPlayerThrow = (res: ThrowResult) => {
     if (mode === "multiplayer") {
       postProgress(meRef.current.done);
-      if (meRef.current.done) {
-        setPhase("over");
-        return;
-      }
+      if (meRef.current.done) { setPhase("over"); return; }
       resetNext();
       return;
     }
     if (mode === "cpu") {
-      if (res.frameEnded) {
-        startCpuTurn();
-        return;
-      }
+      if (res.frameEnded) { startCpuTurn(); return; }
       resetNext();
       return;
     }
-    if (meRef.current.done) {
-      finishSolo();
-      return;
-    }
+    if (meRef.current.done) { finishSolo(); return; }
     resetNext();
   };
 
-  const cpuThrow = (aim: number, power: number, pu: PowerUpId | null) =>
-    new Promise<void>((resolve) => {
-      arriveResolver.current = resolve;
-      triggerThrow("opp", aim, power, pu);
-    });
+  const cpuThrow = (aim: number, power: number, pu: PowerUpId | null) => new Promise<void>((resolve) => {
+    arriveResolver.current = resolve;
+    triggerThrow("opp", aim, power, pu);
+  });
 
   const startCpuTurn = async () => {
     setActive("opp");
@@ -275,16 +245,11 @@ export default function Game() {
       const power = 0.58 + Math.random() * 0.34;
       let pu: PowerUpId | null = null;
       const affordable = POWERUPS.filter((p) => g.energy >= p.cost);
-      if (affordable.length && Math.random() < 0.45) {
-        pu = affordable[Math.floor(Math.random() * affordable.length)].id;
-      }
+      if (affordable.length && Math.random() < 0.45) pu = affordable[Math.floor(Math.random() * affordable.length)].id;
       await cpuThrow(aim, power, pu);
       await delay(550);
     }
-    if (g.done && meRef.current.done) {
-      finishVsCpu();
-      return;
-    }
+    if (g.done && meRef.current.done) { finishVsCpu(); return; }
     resetNext();
   };
 
@@ -323,23 +288,13 @@ export default function Game() {
 
   return (
     <View style={styles.container}>
-      <BowlingLane standing={activeGame.standing} throwState={throwState} knockdown={knockdown} ballSkin={ballSkin} onArrive={onArrive} />
+      <BowlingLane standing={activeGame.standing} throwState={throwState} knockdown={knockdown} ballSkin={ballSkin} onArrive={onArrive} onHazardBlocked={onHazardBlocked} />
       <View style={[styles.topHud, { top: insets.top + spacing.xs }]}>
         <View style={styles.topRow}>
-          <Pressable testID="quit-game-button" onPress={() => router.replace("/")} style={styles.iconBtn}>
-            <Ionicons name="close" size={22} color="#fff" />
-          </Pressable>
+          <Pressable testID="quit-game-button" onPress={() => router.replace("/")} style={styles.iconBtn}><Ionicons name="close" size={22} color="#fff" /></Pressable>
           <View style={styles.scorePills}>
-            <View style={[styles.scorePill, active === "me" && styles.scorePillActive]}>
-              <Text style={styles.scorePillLabel}>YOU</Text>
-              <Text style={styles.scorePillValue}>{myTotal}</Text>
-            </View>
-            {showOpp && (
-              <View style={[styles.scorePill, styles.scorePillOpp, active === "opp" && styles.scorePillActive]}>
-                <Text style={styles.scorePillLabel}>{mode === "cpu" ? rivalName.split(" ")[0].slice(0, 8) : oppRemote?.name?.slice(0, 6) ?? "OPP"}</Text>
-                <Text style={styles.scorePillValue}>{oppTotal}</Text>
-              </View>
-            )}
+            <View style={[styles.scorePill, active === "me" && styles.scorePillActive]}><Text style={styles.scorePillLabel}>YOU</Text><Text style={styles.scorePillValue}>{myTotal}</Text></View>
+            {showOpp && <View style={[styles.scorePill, styles.scorePillOpp, active === "opp" && styles.scorePillActive]}><Text style={styles.scorePillLabel}>{mode === "cpu" ? rivalName.split(" ")[0].slice(0, 8) : oppRemote?.name?.slice(0, 6) ?? "OPP"}</Text><Text style={styles.scorePillValue}>{oppTotal}</Text></View>}
           </View>
           <View style={styles.frameBadge}><Text style={styles.frameBadgeText}>F{displayFrame}</Text></View>
           <SoundToggle color="#fff" bg="rgba(24,24,30,0.82)" />
@@ -347,14 +302,7 @@ export default function Game() {
         <View style={styles.scorecardPanel}><Scorecard frames={activeGame.frames} currentFrame={activeGame.currentFrame} dark testID="scorecard" /></View>
       </View>
       {banner && <Celebration text={banner} />}
-      {quip && (
-        <View style={[styles.quipWrap, { top: insets.top + 150 }]} pointerEvents="none">
-          <View style={styles.quipPill}>
-            <Ionicons name={quip.voice === "cpu" ? "hardware-chip" : "mic"} size={16} color={quip.voice === "cpu" ? colors.brandPrimary : colors.brand} />
-            <Text style={styles.quipText} numberOfLines={2}>{quip.text}</Text>
-          </View>
-        </View>
-      )}
+      {quip && <View style={[styles.quipWrap, { top: insets.top + 150 }]} pointerEvents="none"><View style={styles.quipPill}><Ionicons name={quip.voice === "cpu" ? "hardware-chip" : "mic"} size={16} color={quip.voice === "cpu" ? colors.brandPrimary : colors.brand} /><Text style={styles.quipText} numberOfLines={2}>{quip.text}</Text></View></View>}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing.sm }]}>
         <Glass style={styles.controlPanel} intensity={45} tint="dark">
           <View style={styles.panelInner}>
