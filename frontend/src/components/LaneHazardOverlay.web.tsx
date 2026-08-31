@@ -14,16 +14,21 @@ export default function LaneHazardOverlay() {
   const [hazard, setHazard] = useState<Hazard>(null);
   const [warning, setWarning] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wallY = useSharedValue(120);
+  const cleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const gatorX = useSharedValue(130);
   const warningPulse = useSharedValue(0.55);
+
+  const emitState = (id: Hazard, active: boolean) => {
+    window.dispatchEvent(new CustomEvent("super-strike-hazard-state", { detail: { id, active } }));
+  };
 
   const schedule = () => {
     const wait = 12000 + Math.floor(Math.random() * 7000);
     timerRef.current = setTimeout(() => {
-      const next: Hazard = Math.random() < 0.58 ? "pop-wall" : "alley-gator";
+      const next: Hazard = "alley-gator";
       setHazard(next);
       setWarning(true);
+      emitState(next, false);
       warningPulse.value = withSequence(
         withTiming(1, { duration: 160 }),
         withTiming(0.55, { duration: 160 }),
@@ -31,32 +36,25 @@ export default function LaneHazardOverlay() {
         withTiming(0.55, { duration: 160 }),
       );
 
-      setTimeout(() => {
+      cleanupRef.current.push(setTimeout(() => {
         setWarning(false);
-        if (next === "pop-wall") {
-          wallY.value = 120;
-          wallY.value = withSequence(
-            withTiming(0, { duration: 260, easing: Easing.out(Easing.back(1.4)) }),
-            withTiming(0, { duration: 900 }),
-            withTiming(120, { duration: 300, easing: Easing.in(Easing.quad) }),
-          );
-        } else {
-          gatorX.value = 130;
-          gatorX.value = withSequence(
-            withTiming(0, { duration: 220, easing: Easing.out(Easing.back(1.2)) }),
-            withTiming(-8, { duration: 120 }),
-            withTiming(12, { duration: 90 }),
-            withTiming(-4, { duration: 80 }),
-            withTiming(0, { duration: 80 }),
-            withTiming(130, { duration: 360, easing: Easing.in(Easing.quad) }),
-          );
-        }
+        emitState(next, true);
+        gatorX.value = 130;
+        gatorX.value = withSequence(
+          withTiming(0, { duration: 220, easing: Easing.out(Easing.back(1.2)) }),
+          withTiming(-8, { duration: 120 }),
+          withTiming(12, { duration: 90 }),
+          withTiming(-4, { duration: 80 }),
+          withTiming(0, { duration: 80 }),
+          withTiming(130, { duration: 360, easing: Easing.in(Easing.quad) }),
+        );
 
-        setTimeout(() => {
+        cleanupRef.current.push(setTimeout(() => {
+          emitState(next, false);
           setHazard(null);
           schedule();
-        }, next === "pop-wall" ? 1600 : 1300);
-      }, 900);
+        }, 1300));
+      }, 900));
     }, wait);
   };
 
@@ -64,17 +62,12 @@ export default function LaneHazardOverlay() {
     schedule();
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      cleanupRef.current.forEach(clearTimeout);
+      emitState("alley-gator", false);
     };
   }, []);
 
-  const wallStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: wallY.value }],
-  }));
-
-  const gatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: gatorX.value }],
-  }));
-
+  const gatorStyle = useAnimatedStyle(() => ({ transform: [{ translateX: gatorX.value }] }));
   const warningStyle = useAnimatedStyle(() => ({ opacity: warningPulse.value }));
 
   if (!hazard) return null;
@@ -84,21 +77,8 @@ export default function LaneHazardOverlay() {
       {warning && (
         <Animated.View style={[styles.warning, warningStyle]}>
           <Text style={styles.warningTop}>⚠ LANE INTERFERENCE ⚠</Text>
-          <Text style={styles.warningMain}>
-            {hazard === "pop-wall" ? "POP WALL!" : "ALLEY-GATOR!"}
-          </Text>
-          <Text style={styles.warningSub}>
-            {hazard === "pop-wall" ? "DODGE IT OR POWER THROUGH" : "WATCH THE BITE ZONE"}
-          </Text>
-        </Animated.View>
-      )}
-
-      {hazard === "pop-wall" && !warning && (
-        <Animated.View style={[styles.wall, wallStyle]}>
-          <View style={styles.wallStripe} />
-          <Text style={styles.wallText}>AMS WEST</Text>
-          <Text style={styles.wallSmall}>POP WALL</Text>
-          <View style={styles.wallStripe} />
+          <Text style={styles.warningMain}>ALLEY-GATOR!</Text>
+          <Text style={styles.warningSub}>WATCH THE BITE ZONE</Text>
         </Animated.View>
       )}
 
@@ -125,38 +105,18 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     backgroundColor: "rgba(12,10,8,0.92)",
     borderWidth: 2,
-    borderColor: "#ffb000",
+    borderColor: "#7CFF49",
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: "center",
-    shadowColor: "#ff5a00",
+    shadowColor: "#7CFF49",
     shadowOpacity: 0.8,
     shadowRadius: 16,
   },
-  warningTop: { color: "#ffd34d", fontWeight: "900", fontSize: 14, letterSpacing: 1.2 },
+  warningTop: { color: "#dfffca", fontWeight: "900", fontSize: 14, letterSpacing: 1.2 },
   warningMain: { color: "white", fontWeight: "900", fontSize: 30, marginTop: 3 },
-  warningSub: { color: "#ffb000", fontWeight: "800", fontSize: 12, marginTop: 2, letterSpacing: 0.8 },
-  wall: {
-    position: "absolute",
-    left: "18%",
-    right: "18%",
-    bottom: "31%",
-    height: 90,
-    borderRadius: 10,
-    backgroundColor: "#262b31",
-    borderWidth: 3,
-    borderColor: "#ff7a00",
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#ff7a00",
-    shadowOpacity: 0.7,
-    shadowRadius: 12,
-  },
-  wallStripe: { position: "absolute", left: 0, right: 0, height: 8, top: 0, backgroundColor: "#ffd000" },
-  wallText: { color: "white", fontWeight: "900", fontSize: 20, letterSpacing: 1.4 },
-  wallSmall: { color: "#ffb000", fontWeight: "900", fontSize: 13, letterSpacing: 2 },
+  warningSub: { color: "#7CFF49", fontWeight: "800", fontSize: 12, marginTop: 2, letterSpacing: 0.8 },
   gatorWrap: { position: "absolute", right: 8, bottom: "29%", width: 156 },
   gatorHead: {
     backgroundColor: "#194d2b",
