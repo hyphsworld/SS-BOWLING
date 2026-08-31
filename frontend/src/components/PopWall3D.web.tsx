@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { popWallOutcome } from "@/src/game/hazards";
+import type { PowerUpId } from "@/src/game/powerups";
 
 const WALL_Z = -3.7;
 const WARNING_MS = 850;
@@ -8,6 +10,12 @@ const HOLD_MS = 1200;
 const RETRACT_MS = 380;
 const CYCLE_MIN = 9000;
 const CYCLE_MAX = 14000;
+
+type HazardBridgePayload = {
+  type: "pop-wall-impact";
+  powerup: PowerUpId | null;
+  ballX: number;
+};
 
 function easeOutBack(t: number) {
   const c1 = 1.45;
@@ -62,15 +70,50 @@ export default function PopWall3D() {
     [0.03, 0.77].forEach((y) => { const strip = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.055, 0.3), orange); strip.position.set(0, y, 0.01); rig.add(strip); });
     [-0.72, 0.72].forEach((x) => { const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), red); beacon.position.set(x, 0.84, 0.12); rig.add(beacon); });
 
+    const debris = new THREE.Group(); debris.visible = false; scene.add(debris);
+    for (let i = 0; i < 14; i++) {
+      const chunk = new THREE.Mesh(new THREE.BoxGeometry(0.09 + Math.random() * 0.09, 0.04 + Math.random() * 0.05, 0.04 + Math.random() * 0.05), i % 2 ? orange : steel);
+      chunk.userData.v = new THREE.Vector3((Math.random() - 0.5) * 3.6, 1.6 + Math.random() * 2.2, 0.8 + Math.random() * 1.8);
+      chunk.userData.spin = new THREE.Vector3(Math.random() * 7, Math.random() * 7, Math.random() * 7);
+      debris.add(chunk);
+    }
+
     const slot = new THREE.Group(); slot.position.set(0, 0.012, WALL_Z); scene.add(slot);
     const slotDark = new THREE.Mesh(new THREE.BoxGeometry(1.94, 0.025, 0.34), new THREE.MeshBasicMaterial({ color: 0x050608 })); slot.add(slotDark);
     [-0.93, 0.93].forEach((x) => { const edge = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.38), new THREE.MeshBasicMaterial({ color: 0xff8a00 })); edge.position.x = x; slot.add(edge); });
     const warnLight = new THREE.PointLight(0xff3b00, 0, 3.5); warnLight.position.set(0, 0.22, WALL_Z + 0.2); scene.add(warnLight);
 
-    let phase: "idle" | "warning" | "rise" | "hold" | "retract" = "idle";
+    let phase: "idle" | "warning" | "rise" | "hold" | "retract" | "smashed" = "idle";
     let phaseStart = performance.now(); let nextAt = phaseStart + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN);
+    let impactPulse = 0;
+
+    const onImpact = (event: Event) => {
+      const detail = (event as CustomEvent<HazardBridgePayload>).detail;
+      if (!detail || detail.type !== "pop-wall-impact") return;
+      if (!(phase === "rise" || phase === "hold")) return;
+      const outcome = popWallOutcome(detail.powerup, detail.ballX, 0);
+      if (outcome.smashed) {
+        phase = "smashed";
+        phaseStart = performance.now();
+        debris.visible = true;
+        debris.position.set(0, 0.45, WALL_Z + 0.12);
+        debris.children.forEach((c) => { c.position.set((Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 0.35, 0); });
+        rig.visible = false;
+        warnLight.intensity = 8;
+      } else if (outcome.blocked) {
+        impactPulse = 1;
+        rig.rotation.z = (Math.random() - 0.5) * 0.07;
+        warnLight.intensity = 8;
+      } else {
+        impactPulse = 0.55;
+        warnLight.intensity = 6;
+      }
+    };
+    window.addEventListener("super-strike-hazard", onImpact as EventListener);
+
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate); const now = performance.now();
+      const dt = 1 / 60;
       if (phase === "idle" && now >= nextAt) { phase = "warning"; phaseStart = now; rig.visible = false; }
       if (phase === "warning") {
         const t = Math.min(1, (now - phaseStart) / WARNING_MS); warnLight.intensity = 2.5 + Math.abs(Math.sin(t * Math.PI * 7)) * 5;
@@ -81,16 +124,27 @@ export default function PopWall3D() {
         if (t >= 1) { rig.position.y = 0; rig.rotation.z = 0; phase = "hold"; phaseStart = now; }
       } else if (phase === "hold") {
         const t = Math.min(1, (now - phaseStart) / HOLD_MS); rig.position.y = Math.sin(t * Math.PI * 10) * 0.008; warnLight.intensity = 2 + Math.abs(Math.sin(t * Math.PI * 8)) * 4;
+        if (impactPulse > 0.01) { impactPulse *= 0.88; rig.position.x = (Math.random() - 0.5) * impactPulse * 0.14; rig.rotation.z = (Math.random() - 0.5) * impactPulse * 0.08; }
+        else { rig.position.x = 0; rig.rotation.z *= 0.75; }
         if (t >= 1) { phase = "retract"; phaseStart = now; }
+      } else if (phase === "smashed") {
+        const t = Math.min(1, (now - phaseStart) / 700);
+        debris.children.forEach((c: any) => {
+          c.userData.v.y -= 4.8 * dt;
+          c.position.addScaledVector(c.userData.v, dt);
+          c.rotation.x += c.userData.spin.x * dt; c.rotation.y += c.userData.spin.y * dt; c.rotation.z += c.userData.spin.z * dt;
+        });
+        warnLight.intensity = 8 * (1 - t);
+        if (t >= 1) { debris.visible = false; phase = "idle"; rig.position.set(0, -0.86, WALL_Z); slot.scale.set(1,1,1); nextAt = now + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN); }
       } else if (phase === "retract") {
         const t = Math.min(1, (now - phaseStart) / RETRACT_MS); rig.position.y = -0.86 * t * t; warnLight.intensity = 4 * (1 - t);
-        if (t >= 1) { rig.visible = false; rig.position.y = -0.86; slot.scale.set(1,1,1); phase = "idle"; nextAt = now + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN); }
+        if (t >= 1) { rig.visible = false; rig.position.set(0,-0.86,WALL_Z); slot.scale.set(1,1,1); phase = "idle"; nextAt = now + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN); }
       }
       renderer.render(scene, camera);
     }; animate();
     const resize = () => { const w = Math.max(1, host.clientWidth || window.innerWidth), h = Math.max(1, host.clientHeight || window.innerHeight); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); };
     window.addEventListener("resize", resize);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); window.removeEventListener("resize", resize); scene.traverse((o:any)=>{o.geometry?.dispose?.(); if(o.material){if(Array.isArray(o.material))o.material.forEach((m:any)=>m.dispose?.());else o.material.dispose?.();}}); faceTex.dispose(); renderer.dispose(); try{host.removeChild(renderer.domElement);}catch{} };
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); window.removeEventListener("resize", resize); window.removeEventListener("super-strike-hazard", onImpact as EventListener); scene.traverse((o:any)=>{o.geometry?.dispose?.(); if(o.material){if(Array.isArray(o.material))o.material.forEach((m:any)=>m.dispose?.());else o.material.dispose?.();}}); faceTex.dispose(); renderer.dispose(); try{host.removeChild(renderer.domElement);}catch{} };
   }, []);
   return <div ref={hostRef} style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none" }} />;
 }
