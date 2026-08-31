@@ -1,5 +1,14 @@
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
+import LaneHazardOverlay from "@/src/components/LaneHazardOverlay.web";
 
 export default function WebRootLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  const pathname = usePathname();
+  const isGameRoute = pathname === "/game" || pathname.endsWith("/game");
+
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      {isGameRoute ? <LaneHazardOverlay /> : null}
+    </>
+  );
 }
