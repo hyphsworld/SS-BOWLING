@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
 import { SKIN_MAP } from "@/src/game/skins";
+import { POP_WALL, popWallOutcome } from "@/src/game/hazards";
 
 export interface ThrowState {
   key: number;
@@ -24,6 +25,7 @@ interface Props {
   knockdown: { key: number; pins: number[] } | null;
   ballSkin?: string;
   onArrive?: () => void;
+  onHazardBlocked?: () => void;
 }
 
 const WX = 0.5;
@@ -154,7 +156,7 @@ interface PinObj {
   resetFromQuat: THREE.Quaternion;
 }
 
-export default function BowlingLane({ standing, throwState, knockdown, ballSkin, onArrive }: Props) {
+export default function BowlingLane({ standing, throwState, knockdown, ballSkin, onArrive, onHazardBlocked }: Props) {
   const hostRef = useRef<any>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -172,14 +174,16 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
   const standingSetRef = useRef<Set<number>>(new Set(standing));
   const recentlyKnockedRef = useRef<Map<number, number>>(new Map());
   const onArriveRef = useRef<typeof onArrive>(onArrive);
+  const onHazardBlockedRef = useRef<typeof onHazardBlocked>(onHazardBlocked);
   const cinematicRef = useRef({ active: false, t: 0, dur: 1.5 });
-  const throwAnim = useRef({ active: false, t: 0, dur: 0.82, aim: 0, powerup: null as PowerUpId | null, arrived: true });
+  const throwAnim = useRef({ active: false, t: 0, dur: 0.82, aim: 0, powerup: null as PowerUpId | null, arrived: true, hazardChecked: false });
 
   const flash = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
   const [flashColor, setFlashColor] = useState("#7FE9FF");
 
   useEffect(() => { onArriveRef.current = onArrive; }, [onArrive]);
+  useEffect(() => { onHazardBlockedRef.current = onHazardBlocked; }, [onHazardBlocked]);
   useEffect(() => { standingSetRef.current = new Set(standing); }, [standing]);
   useEffect(() => {
     skinRef.current = ballSkin || "classic";
@@ -199,7 +203,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
   useEffect(() => {
     if (!throwState) return;
     const a = throwAnim.current;
-    a.active = true; a.arrived = false; a.t = 0; a.aim = throwState.aim; a.powerup = throwState.powerup;
+    a.active = true; a.arrived = false; a.t = 0; a.aim = throwState.aim; a.powerup = throwState.powerup; a.hazardChecked = false;
     a.dur = throwState.powerup === "muscle" ? 0.56 : 0.82;
     if (ballRef.current) {
       const mat = ballRef.current.material as THREE.MeshStandardMaterial;
@@ -260,25 +264,19 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
   useEffect(() => {
     const host = hostRef.current as HTMLElement | null;
     if (!host) return;
-
     const width = Math.max(1, host.clientWidth || window.innerWidth);
     const height = Math.max(1, host.clientHeight || window.innerHeight);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height, false);
     renderer.setClearColor(0x05060a, 1);
-    renderer.domElement.style.position = "absolute";
-    renderer.domElement.style.inset = "0";
-    renderer.domElement.style.width = "100%";
-    renderer.domElement.style.height = "100%";
-    renderer.domElement.style.display = "block";
+    Object.assign(renderer.domElement.style, { position: "absolute", inset: "0", width: "100%", height: "100%", display: "block" });
     host.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x05060a, 7, 14);
     sceneRef.current = scene;
-
     const camera = new THREE.PerspectiveCamera(58, width / height, 0.1, 100);
     camera.position.set(0, 0.62, 2.4);
     camera.lookAt(0, 0.34, -7.5);
@@ -293,68 +291,34 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
 
     const laneLen = BALL_START_Z - (PIN_FRONT_Z - ROW_GAP * 3 - 0.8);
     const laneCz = (BALL_START_Z + (PIN_FRONT_Z - ROW_GAP * 3 - 0.8)) / 2;
-    const lane = new THREE.Mesh(
-      new THREE.BoxGeometry(LANE_HALF * 2, 0.1, laneLen),
-      new THREE.MeshStandardMaterial({ map: makeWoodTexture(), color: 0xffffff, roughness: 0.18, metalness: 0.35 }),
-    );
+    const lane = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2, 0.1, laneLen), new THREE.MeshStandardMaterial({ map: makeWoodTexture(), color: 0xffffff, roughness: 0.18, metalness: 0.35 }));
     lane.position.set(0, -0.05, laneCz); scene.add(lane);
-    const sheen = new THREE.Mesh(
-      new THREE.PlaneGeometry(LANE_HALF * 0.9, laneLen),
-      new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }),
-    );
+    const sheen = new THREE.Mesh(new THREE.PlaneGeometry(LANE_HALF * 0.9, laneLen), new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }));
     sheen.rotation.x = -Math.PI / 2; sheen.position.set(0, 0.011, laneCz); scene.add(sheen);
-
     const gutMat = new THREE.MeshStandardMaterial({ color: 0x0a0c10, roughness: 0.6, metalness: 0.5 });
-    [-1, 1].forEach((sd) => {
-      const g = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, laneLen), gutMat);
-      g.position.set(sd * (LANE_HALF + 0.11), -0.1, laneCz); scene.add(g);
-    });
-
+    [-1, 1].forEach((sd) => { const g = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, laneLen), gutMat); g.position.set(sd * (LANE_HALF + 0.11), -0.1, laneCz); scene.add(g); });
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.45, metalness: 0.85 });
     const graffiti = makeGraffitiTexture();
     [-1, 1].forEach((sd) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.4, laneLen), metalMat);
-      wall.position.set(sd * (LANE_HALF + 0.28), 1.0, laneCz); scene.add(wall);
-      const graf = new THREE.Mesh(
-        new THREE.PlaneGeometry(laneLen, 2.1),
-        new THREE.MeshBasicMaterial({ map: graffiti, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.95 }),
-      );
-      graf.rotation.y = sd > 0 ? -Math.PI / 2 : Math.PI / 2;
-      graf.position.set(sd * (LANE_HALF + 0.2), 1.05, laneCz); scene.add(graf);
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, laneLen), new THREE.MeshBasicMaterial({ color: 0x22e1ff }));
-      strip.position.set(sd * (LANE_HALF + 0.2), 2.05, laneCz); scene.add(strip);
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.4, laneLen), metalMat); wall.position.set(sd * (LANE_HALF + 0.28), 1.0, laneCz); scene.add(wall);
+      const graf = new THREE.Mesh(new THREE.PlaneGeometry(laneLen, 2.1), new THREE.MeshBasicMaterial({ map: graffiti, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.95 }));
+      graf.rotation.y = sd > 0 ? -Math.PI / 2 : Math.PI / 2; graf.position.set(sd * (LANE_HALF + 0.2), 1.05, laneCz); scene.add(graf);
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, laneLen), new THREE.MeshBasicMaterial({ color: 0x22e1ff })); strip.position.set(sd * (LANE_HALF + 0.2), 2.05, laneCz); scene.add(strip);
     });
-
     const pitZ = PIN_FRONT_Z - ROW_GAP * 3 - 0.55;
-    const pit = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2.2, 1.2, 1.0), new THREE.MeshStandardMaterial({ color: 0x050608, roughness: 0.9 }));
-    pit.position.set(0, 0.2, pitZ); scene.add(pit);
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.6, metalness: 0.5 }));
-    backWall.position.set(0, 1.0, pitZ - 0.5); scene.add(backWall);
-    const neonH = new THREE.Mesh(new THREE.BoxGeometry(4, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x22e1ff }));
-    neonH.position.set(0, 1.7, pitZ - 0.48); scene.add(neonH);
+    const pit = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2.2, 1.2, 1.0), new THREE.MeshStandardMaterial({ color: 0x050608, roughness: 0.9 })); pit.position.set(0, 0.2, pitZ); scene.add(pit);
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.6, metalness: 0.5 })); backWall.position.set(0, 1.0, pitZ - 0.5); scene.add(backWall);
+    const neonH = new THREE.Mesh(new THREE.BoxGeometry(4, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x22e1ff })); neonH.position.set(0, 1.7, pitZ - 0.48); scene.add(neonH);
+    [-0.55, -0.2, 0.2, 0.55].forEach((ax) => { const tri = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 3), new THREE.MeshStandardMaterial({ color: 0x2a2118, emissive: 0x1a1206, roughness: 0.5 })); tri.rotation.x = -Math.PI / 2; tri.position.set(ax * LANE_HALF, 0.02, -2.6); scene.add(tri); });
 
-    [-0.55, -0.2, 0.2, 0.55].forEach((ax) => {
-      const tri = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 3), new THREE.MeshStandardMaterial({ color: 0x2a2118, emissive: 0x1a1206, roughness: 0.5 }));
-      tri.rotation.x = -Math.PI / 2; tri.position.set(ax * LANE_HALF, 0.02, -2.6); scene.add(tri);
-    });
-
-    const pinPts: THREE.Vector2[] = [
-      new THREE.Vector2(0.001, 0), new THREE.Vector2(0.05, 0), new THREE.Vector2(0.057, 0.04),
-      new THREE.Vector2(0.048, 0.11), new THREE.Vector2(0.078, 0.18), new THREE.Vector2(0.052, 0.27),
-      new THREE.Vector2(0.03, 0.32), new THREE.Vector2(0.046, 0.37), new THREE.Vector2(0.036, 0.41), new THREE.Vector2(0.001, 0.42),
-    ];
+    const pinPts: THREE.Vector2[] = [new THREE.Vector2(0.001, 0), new THREE.Vector2(0.05, 0), new THREE.Vector2(0.057, 0.04), new THREE.Vector2(0.048, 0.11), new THREE.Vector2(0.078, 0.18), new THREE.Vector2(0.052, 0.27), new THREE.Vector2(0.03, 0.32), new THREE.Vector2(0.046, 0.37), new THREE.Vector2(0.036, 0.41), new THREE.Vector2(0.001, 0.42)];
     const pinGeo = new THREE.LatheGeometry(pinPts, 22); pinGeo.translate(0, -0.21, 0);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x334455, emissiveIntensity: 0.35, roughness: 0.25, metalness: 0.05 });
     const redMat = new THREE.MeshStandardMaterial({ color: 0xd42a2a, roughness: 0.3 });
     pinsRef.current = [];
     Object.keys(PINS).forEach((k) => {
-      const id = Number(k), w = pinWorld(id);
-      const group = new THREE.Group();
-      group.add(new THREE.Mesh(pinGeo, bodyMat.clone()));
-      [0.09, 0.03].forEach((ry) => {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 8, 22), redMat);
-        ring.rotation.x = Math.PI / 2; ring.position.y = ry; group.add(ring);
-      });
+      const id = Number(k), w = pinWorld(id); const group = new THREE.Group(); group.add(new THREE.Mesh(pinGeo, bodyMat.clone()));
+      [0.09, 0.03].forEach((ry) => { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 8, 22), redMat); ring.rotation.x = Math.PI / 2; ring.position.y = ry; group.add(ring); });
       group.position.set(w.x, PIN_HALF, w.z); group.scale.setScalar(PIN_SCALE); scene.add(group);
       pinsRef.current.push({ id, group, base: new THREE.Vector3(w.x, PIN_HALF, w.z), pos: new THREE.Vector3(w.x, PIN_HALF, w.z), vel: new THREE.Vector3(), ang: new THREE.Vector3(), launching: false, fallen: false, delay: 0, resetting: false, resetT: 0, resetFromPos: new THREE.Vector3(), resetFromQuat: new THREE.Quaternion() });
     });
@@ -366,17 +330,8 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     const reflect = new THREE.Mesh(new THREE.CircleGeometry(BALL_R * 1.3, 20), new THREE.MeshBasicMaterial({ color: 0xff5a2a, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
     reflect.rotation.x = -Math.PI / 2; reflect.visible = false; scene.add(reflect); reflectRef.current = reflect;
 
-    const resize = () => {
-      const w = Math.max(1, host.clientWidth || window.innerWidth);
-      const h = Math.max(1, host.clientHeight || window.innerHeight);
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-    };
-    resizeObserverRef.current = new ResizeObserver(resize);
-    resizeObserverRef.current.observe(host);
-    window.addEventListener("resize", resize);
-
+    const resize = () => { const w = Math.max(1, host.clientWidth || window.innerWidth); const h = Math.max(1, host.clientHeight || window.innerHeight); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+    resizeObserverRef.current = new ResizeObserver(resize); resizeObserverRef.current.observe(host); window.addEventListener("resize", resize);
     lastRef.current = performance.now();
     const tmpQ = new THREE.Quaternion();
     const tmpAxis = new THREE.Vector3();
@@ -398,7 +353,23 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         b.scale.setScalar(sc); b.position.set(x, BALL_R * sc, z); b.rotation.x -= dt * 24;
         const rf = reflectRef.current!; rf.position.set(x, 0.012, z); rf.scale.setScalar(sc); (rf.material as THREE.MeshBasicMaterial).opacity = 0.3 * (1 - t * 0.5);
         camDz = -0.55 * Math.sin(Math.PI * t); camDy = -0.06 * Math.sin(Math.PI * t);
-        if (t >= 1 && !a.arrived) {
+
+        if (!a.hazardChecked && z <= POP_WALL.z) {
+          a.hazardChecked = true;
+          const outcome = popWallOutcome(a.powerup, x, 0);
+          window.dispatchEvent(new CustomEvent("super-strike-hazard", { detail: { type: "pop-wall-impact", powerup: a.powerup, ballX: x } }));
+          if (outcome.blocked) {
+            a.arrived = true;
+            a.active = false;
+            b.visible = false;
+            rf.visible = false;
+            impactRef.current.set(x, 0, POP_WALL.z);
+            shakeRef.current = 0.22;
+            onHazardBlockedRef.current?.();
+          }
+        }
+
+        if (a.active && t >= 1 && !a.arrived) {
           a.arrived = true; a.active = false; b.visible = false; rf.visible = false; impactRef.current.set(x, 0, PIN_FRONT_Z); onArriveRef.current?.();
         }
       }
@@ -436,9 +407,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
           }
           continue;
         }
-        if (p.fallen && up && kt !== undefined && now - kt > HOLD && !p.resetting) {
-          p.resetting = true; p.resetT = 0; p.resetFromPos.copy(p.group.position); p.resetFromQuat.copy(p.group.quaternion);
-        }
+        if (p.fallen && up && kt !== undefined && now - kt > HOLD && !p.resetting) { p.resetting = true; p.resetT = 0; p.resetFromPos.copy(p.group.position); p.resetFromQuat.copy(p.group.quaternion); }
         if (p.resetting) {
           p.resetT = Math.min(1, p.resetT + dt * 3);
           const e = 1 - Math.pow(1 - p.resetT, 3);
@@ -458,10 +427,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
       window.removeEventListener("resize", resize);
       scene.traverse((o: any) => {
         if (o.geometry) o.geometry.dispose?.();
-        if (o.material) {
-          if (Array.isArray(o.material)) o.material.forEach((m: any) => m.dispose?.());
-          else o.material.dispose?.();
-        }
+        if (o.material) { if (Array.isArray(o.material)) o.material.forEach((m: any) => m.dispose?.()); else o.material.dispose?.(); }
       });
       renderer.dispose();
       try { host.removeChild(renderer.domElement); } catch {}
@@ -469,13 +435,13 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
   }, []);
 
   return (
-    <View style={styles.container}>
-      <div ref={hostRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: flashColor }, flashStyle]} />
+    <View ref={hostRef} style={styles.container}>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flash, { backgroundColor: flashColor }, flashStyle]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, overflow: "hidden", backgroundColor: "#05060a" },
+  container: { flex: 1, backgroundColor: "#05060a" },
+  flash: { zIndex: 5 },
 });
