@@ -10,6 +10,11 @@ const HOLD_MS = 1200;
 const RETRACT_MS = 380;
 const CYCLE_MIN = 9000;
 const CYCLE_MAX = 14000;
+const SLOT_WIDTH = 1.94;
+const SLOT_DEPTH = 0.34;
+const SLOT_Y = 0.012;
+const WALL_HIDDEN_Y = -0.78;
+const WALL_UP_Y = 0;
 
 type HazardBridgePayload = {
   type: "pop-wall-impact";
@@ -57,7 +62,7 @@ export default function PopWall3D() {
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
     const key = new THREE.DirectionalLight(0xfff1cf, 1.5); key.position.set(1.5, 4, 2); scene.add(key);
 
-    const rig = new THREE.Group(); rig.visible = false; rig.position.set(0, -0.86, WALL_Z); scene.add(rig);
+    const rig = new THREE.Group(); rig.visible = false; rig.position.set(0, WALL_HIDDEN_Y, WALL_Z); scene.add(rig);
     const steel = new THREE.MeshStandardMaterial({ color: 0x252b32, metalness: 0.9, roughness: 0.2 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x0d1115, metalness: 0.82, roughness: 0.3 });
     const orange = new THREE.MeshStandardMaterial({ color: 0xff8a00, emissive: 0xff4d00, emissiveIntensity: 2.0, metalness: 0.55, roughness: 0.25 });
@@ -66,7 +71,7 @@ export default function PopWall3D() {
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.78, 0.24), steel); body.position.y = 0.39; rig.add(body);
     const faceTex = makeFaceTexture();
     const face = new THREE.Mesh(new THREE.PlaneGeometry(1.58, 0.58), new THREE.MeshStandardMaterial({ map: faceTex, emissive: 0x2a0d00, emissiveIntensity: 0.6, metalness: 0.25, roughness: 0.32 })); face.position.set(0, 0.42, 0.126); rig.add(face);
-    [-0.84, 0.84].forEach((x) => { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.0, 0.32), dark); rail.position.set(x, 0.28, 0); rig.add(rail); });
+    [-0.84, 0.84].forEach((x) => { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.92, 0.30), dark); rail.position.set(x, 0.31, 0); rig.add(rail); });
     [0.03, 0.77].forEach((y) => { const strip = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.055, 0.3), orange); strip.position.set(0, y, 0.01); rig.add(strip); });
     [-0.72, 0.72].forEach((x) => { const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), red); beacon.position.set(x, 0.84, 0.12); rig.add(beacon); });
 
@@ -78,9 +83,9 @@ export default function PopWall3D() {
       debris.add(chunk);
     }
 
-    const slot = new THREE.Group(); slot.position.set(0, 0.012, WALL_Z); scene.add(slot);
-    const slotDark = new THREE.Mesh(new THREE.BoxGeometry(1.94, 0.025, 0.34), new THREE.MeshBasicMaterial({ color: 0x050608 })); slot.add(slotDark);
-    [-0.93, 0.93].forEach((x) => { const edge = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.38), new THREE.MeshBasicMaterial({ color: 0xff8a00 })); edge.position.x = x; slot.add(edge); });
+    const slot = new THREE.Group(); slot.position.set(0, SLOT_Y, WALL_Z); scene.add(slot);
+    const slotDark = new THREE.Mesh(new THREE.BoxGeometry(SLOT_WIDTH, 0.025, SLOT_DEPTH), new THREE.MeshBasicMaterial({ color: 0x050608 })); slot.add(slotDark);
+    [-0.93, 0.93].forEach((x) => { const edge = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, SLOT_DEPTH + 0.04), new THREE.MeshBasicMaterial({ color: 0xff8a00 })); edge.position.x = x; slot.add(edge); });
     const warnLight = new THREE.PointLight(0xff3b00, 0, 3.5); warnLight.position.set(0, 0.22, WALL_Z + 0.2); scene.add(warnLight);
 
     let phase: "idle" | "warning" | "rise" | "hold" | "retract" | "smashed" = "idle";
@@ -114,19 +119,19 @@ export default function PopWall3D() {
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate); const now = performance.now();
       const dt = 1 / 60;
-      if (phase === "idle" && now >= nextAt) { phase = "warning"; phaseStart = now; rig.visible = false; }
+      if (phase === "idle" && now >= nextAt) { phase = "warning"; phaseStart = now; rig.visible = false; rig.position.set(0, WALL_HIDDEN_Y, WALL_Z); }
       if (phase === "warning") {
         const t = Math.min(1, (now - phaseStart) / WARNING_MS); warnLight.intensity = 2.5 + Math.abs(Math.sin(t * Math.PI * 7)) * 5;
-        slot.scale.z = 1 + Math.abs(Math.sin(t * Math.PI * 7)) * 0.18;
+        slot.scale.z = 1 + Math.abs(Math.sin(t * Math.PI * 7)) * 0.12;
         if (t >= 1) { phase = "rise"; phaseStart = now; rig.visible = true; warnLight.intensity = 5; }
       } else if (phase === "rise") {
-        const t = Math.min(1, (now - phaseStart) / RISE_MS); rig.position.y = -0.86 + easeOutBack(t) * 0.86; rig.rotation.z = Math.sin(t * Math.PI * 5) * 0.018;
-        if (t >= 1) { rig.position.y = 0; rig.rotation.z = 0; phase = "hold"; phaseStart = now; }
+        const t = Math.min(1, (now - phaseStart) / RISE_MS); rig.position.y = WALL_HIDDEN_Y + easeOutBack(t) * (WALL_UP_Y - WALL_HIDDEN_Y); rig.position.x = 0; rig.position.z = WALL_Z; rig.rotation.z = Math.sin(t * Math.PI * 5) * 0.012;
+        if (t >= 1) { rig.position.set(0, WALL_UP_Y, WALL_Z); rig.rotation.z = 0; phase = "hold"; phaseStart = now; }
       } else if (phase === "hold") {
-        const t = Math.min(1, (now - phaseStart) / HOLD_MS); rig.position.y = Math.sin(t * Math.PI * 10) * 0.008; warnLight.intensity = 2 + Math.abs(Math.sin(t * Math.PI * 8)) * 4;
-        if (impactPulse > 0.01) { impactPulse *= 0.88; rig.position.x = (Math.random() - 0.5) * impactPulse * 0.14; rig.rotation.z = (Math.random() - 0.5) * impactPulse * 0.08; }
+        const t = Math.min(1, (now - phaseStart) / HOLD_MS); rig.position.y = WALL_UP_Y + Math.sin(t * Math.PI * 10) * 0.006; rig.position.z = WALL_Z; warnLight.intensity = 2 + Math.abs(Math.sin(t * Math.PI * 8)) * 4;
+        if (impactPulse > 0.01) { impactPulse *= 0.88; rig.position.x = (Math.random() - 0.5) * impactPulse * 0.10; rig.rotation.z = (Math.random() - 0.5) * impactPulse * 0.06; }
         else { rig.position.x = 0; rig.rotation.z *= 0.75; }
-        if (t >= 1) { phase = "retract"; phaseStart = now; }
+        if (t >= 1) { phase = "retract"; phaseStart = now; rig.position.x = 0; rig.rotation.z = 0; }
       } else if (phase === "smashed") {
         const t = Math.min(1, (now - phaseStart) / 700);
         debris.children.forEach((c: any) => {
@@ -135,10 +140,10 @@ export default function PopWall3D() {
           c.rotation.x += c.userData.spin.x * dt; c.rotation.y += c.userData.spin.y * dt; c.rotation.z += c.userData.spin.z * dt;
         });
         warnLight.intensity = 8 * (1 - t);
-        if (t >= 1) { debris.visible = false; phase = "idle"; rig.position.set(0, -0.86, WALL_Z); slot.scale.set(1,1,1); nextAt = now + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN); }
+        if (t >= 1) { debris.visible = false; phase = "idle"; rig.position.set(0, WALL_HIDDEN_Y, WALL_Z); slot.scale.set(1,1,1); nextAt = now + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN); }
       } else if (phase === "retract") {
-        const t = Math.min(1, (now - phaseStart) / RETRACT_MS); rig.position.y = -0.86 * t * t; warnLight.intensity = 4 * (1 - t);
-        if (t >= 1) { rig.visible = false; rig.position.set(0,-0.86,WALL_Z); slot.scale.set(1,1,1); phase = "idle"; nextAt = now + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN); }
+        const t = Math.min(1, (now - phaseStart) / RETRACT_MS); rig.position.x = 0; rig.position.z = WALL_Z; rig.position.y = WALL_UP_Y + (WALL_HIDDEN_Y - WALL_UP_Y) * t * t; warnLight.intensity = 4 * (1 - t);
+        if (t >= 1) { rig.visible = false; rig.position.set(0,WALL_HIDDEN_Y,WALL_Z); slot.scale.set(1,1,1); phase = "idle"; nextAt = now + CYCLE_MIN + Math.random() * (CYCLE_MAX - CYCLE_MIN); }
       }
       renderer.render(scene, camera);
     }; animate();
