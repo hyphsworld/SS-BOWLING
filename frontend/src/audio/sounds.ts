@@ -27,17 +27,16 @@ const SOURCES: Record<SoundName, number> = {
   win: require("../../assets/sounds/win.wav"),
 };
 
-// Gameplay-first mix: keep the sounds tied directly to physical game events.
-// Secondary result stingers stay loaded for compatibility but are muted so
-// they cannot drift out of sync with the ball/pin animation.
+// Gameplay-first mix: impact sounds fire on ball/pin contact, then result
+// stingers fire immediately from the resolved scoring event.
 const VOLUMES: Partial<Record<SoundName, number>> = {
-  ball_roll: 0.6,
+  ball_roll: 0.68,
   pin_crash: 1.0,
-  pin_knock: 0,
+  pin_knock: 0.7,
   tap: 0.5,
   lock: 0.7,
-  strike: 0,
-  spare: 0,
+  strike: 1.0,
+  spare: 1.0,
   gutter: 1.0,
 };
 
