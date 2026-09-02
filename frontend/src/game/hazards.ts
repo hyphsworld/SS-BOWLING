@@ -35,6 +35,11 @@ export const ALLEY_GATOR = {
   width: 1.55,
 };
 
+// The rendered bowling ball radius in lane-world units. Collision includes
+// the ball edge so a visible touch counts immediately instead of requiring
+// the ball center to cross into the hazard.
+const BALL_CONTACT_RADIUS = 0.16;
+
 export function setWebHazardActive(id: HazardId, active: boolean) {
   if (typeof window === "undefined") return;
   window.__superStrikeHazards = { ...(window.__superStrikeHazards || {}), [id]: active };
@@ -53,7 +58,7 @@ export function popWallOutcome(powerup: PowerUpId | null, ballX: number, wallX: 
   if (!active) return { blocked: false, smashed: false, bypassed: true };
 
   const width = active === "alley-gator" ? ALLEY_GATOR.width : POP_WALL.width;
-  const hit = Math.abs(ballX - wallX) < width * 0.52;
+  const hit = Math.abs(ballX - wallX) <= width * 0.5 + BALL_CONTACT_RADIUS;
   if (!hit) return { blocked: false, smashed: false, bypassed: true };
   if (powerup === "bomb") return { blocked: false, smashed: true, bypassed: true };
   if (powerup === "lightning") return { blocked: false, smashed: false, bypassed: true };
