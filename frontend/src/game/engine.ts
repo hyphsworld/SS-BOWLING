@@ -102,17 +102,10 @@ export interface ThrowResult {
   gameEnded: boolean;
 }
 
-// Mutates game in place. aim is -1..1.
-export function applyThrow(
-  g: PlayerGame,
-  aim: number,
-  power: number,
-  powerup: PowerUpId | null,
-): ThrowResult {
-  if (powerup) {
-    g.energy = Math.max(0, g.energy - POWERUP_MAP[powerup].cost);
+function finalizeThrow(g: PlayerGame, knocked: number[], chargePowerup: PowerUpId | null): ThrowResult {
+  if (chargePowerup) {
+    g.energy = Math.max(0, g.energy - POWERUP_MAP[chargePowerup].cost);
   }
-  const knocked = computeThrow(g.standing, aim * AIM_SCALE, power, powerup);
   const kset = new Set(knocked);
   const f = g.frames[g.currentFrame];
   const knockedCount = knocked.length;
@@ -156,6 +149,22 @@ export function applyThrow(
     frameEnded,
     gameEnded: g.done,
   };
+}
+
+// Mutates game in place. aim is -1..1.
+export function applyThrow(
+  g: PlayerGame,
+  aim: number,
+  power: number,
+  powerup: PowerUpId | null,
+): ThrowResult {
+  const knocked = computeThrow(g.standing, aim * AIM_SCALE, power, powerup);
+  return finalizeThrow(g, knocked, powerup);
+}
+
+// Records a blocked hazard hit as a legal zero-pin roll while still consuming the armed power-up.
+export function applyGutterThrow(g: PlayerGame, powerup: PowerUpId | null): ThrowResult {
+  return finalizeThrow(g, [], powerup);
 }
 
 export interface ScoreResult {
@@ -218,29 +227,5 @@ export function countStrikes(frames: Frame[]): number {
 }
 
 export function countSpares(frames: Frame[]): number {
-  return frames.filter(
-    (f) => f.rolls[0] !== 10 && f.rolls.length >= 2 && f.rolls[0] + f.rolls[1] === 10,
-  ).length;
-}
-
-// Roll symbol for scorecard cell (per roll within a frame).
-export function rollSymbol(
-  frameIndex: number,
-  rollIndex: number,
-  rolls: number[],
-): string {
-  const v = rolls[rollIndex];
-  if (v === undefined) return "";
-  if (frameIndex < 9) {
-    if (rollIndex === 0 && v === 10) return "X";
-    if (rollIndex === 1 && rolls[0] + v === 10) return "/";
-    if (v === 0) return "-";
-    return String(v);
-  }
-  // 10th frame
-  if (v === 10) return "X";
-  if (v === 0) return "-";
-  if (rollIndex > 0 && rolls[rollIndex - 1] !== 10 && rolls[rollIndex - 1] + v === 10)
-    return "/";
-  return String(v);
+  return frames.filter((f) => f.rolls.length >= 2 && f.rolls[0] !== 10 && f.rolls[0] + f.rolls[1] === 10).length;
 }

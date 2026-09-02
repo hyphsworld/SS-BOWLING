@@ -36,6 +36,7 @@ export default function PowerUpTray({ energy, armed, onArm, disabled }: Props) {
         {POWERUPS.map((p) => {
           const affordable = energy >= p.cost;
           const isArmed = armed === p.id;
+          const isBomb = p.id === "bomb";
           return (
             <Pressable
               key={p.id}
@@ -47,20 +48,22 @@ export default function PowerUpTray({ energy, armed, onArm, disabled }: Props) {
               }}
               style={[
                 styles.chip,
-                { borderColor: isArmed ? p.color : "rgba(34,225,255,0.3)" },
-                isArmed && { backgroundColor: p.color },
+                { borderColor: isArmed ? (isBomb ? "#FF9A3D" : p.color) : "rgba(34,225,255,0.3)" },
+                isArmed && { backgroundColor: isBomb ? "#FF6A00" : p.color },
+                isArmed && styles.chipArmed,
+                isBomb && isArmed && styles.bombArmed,
                 !affordable && !isArmed && styles.chipDisabled,
               ]}
             >
               <Ionicons
                 name={p.icon as any}
                 size={20}
-                color={isArmed ? (p.id === "bomb" ? "#fff" : colors.onSurface) : p.color}
+                color={isArmed ? "#fff" : p.color}
               />
               <Text
                 style={[
                   styles.chipLabel,
-                  isArmed && { color: p.id === "bomb" ? "#fff" : colors.onSurface },
+                  isArmed && styles.armedText,
                 ]}
               >
                 {p.short}
@@ -69,12 +72,12 @@ export default function PowerUpTray({ energy, armed, onArm, disabled }: Props) {
                 <Ionicons
                   name="flash"
                   size={9}
-                  color={isArmed ? (p.id === "bomb" ? "#fff" : colors.onSurface) : "rgba(234,247,255,0.7)"}
+                  color={isArmed ? "#fff" : "rgba(234,247,255,0.7)"}
                 />
                 <Text
                   style={[
                     styles.costText,
-                    isArmed && { color: p.id === "bomb" ? "#fff" : colors.onSurface },
+                    isArmed && styles.armedText,
                   ]}
                 >
                   {p.cost}
@@ -120,8 +123,23 @@ const styles = StyleSheet.create({
     gap: 1,
     flexShrink: 0,
   },
+  chipArmed: {
+    borderWidth: 3,
+    transform: [{ scale: 1.04 }],
+    shadowColor: "#ffffff",
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  bombArmed: {
+    shadowColor: "#FF8A00",
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 10,
+  },
   chipDisabled: { opacity: 0.4 },
   chipLabel: { fontFamily: font.display, fontSize: 11, color: "#EAF7FF" },
+  armedText: { color: "#fff" },
   costRow: { flexDirection: "row", alignItems: "center", gap: 1 },
   costText: {
     fontFamily: font.text,
