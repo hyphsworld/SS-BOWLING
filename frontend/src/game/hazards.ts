@@ -22,8 +22,11 @@ declare global {
 export const POP_WALL = {
   id: "pop-wall" as const,
   z: -3.7,
-  width: 1.05,
-  height: 0.72,
+  // PopWall3D renders a 1.78-wide body plus rails centered at +/-0.84.
+  // Use the real rendered body width for gameplay collision.
+  width: 1.78,
+  depth: 0.24,
+  height: 0.78,
   warningMs: 650,
   holdMs: 900,
   retractMs: 320,
@@ -35,11 +38,10 @@ export const ALLEY_GATOR = {
   width: 1.55,
 };
 
-// Make the hazard intentionally unforgiving on mobile: the ball does not
-// need to visually overlap the wall. Entering this extra proximity buffer
-// counts as a hit so near-misses become an immediate gutter.
-const BALL_CONTACT_RADIUS = 0.16;
-const HAZARD_PROXIMITY_BUFFER = 0.34;
+// BowlingLane.web renders the normal ball with radius 0.16. Collision uses
+// edge-to-edge contact against the visible hazard instead of an arbitrary
+// proximity buffer.
+export const BALL_CONTACT_RADIUS = 0.16;
 
 export function setWebHazardActive(id: HazardId, active: boolean) {
   if (typeof window === "undefined") return;
@@ -59,7 +61,7 @@ export function popWallOutcome(powerup: PowerUpId | null, ballX: number, wallX: 
   if (!active) return { blocked: false, smashed: false, bypassed: true };
 
   const width = active === "alley-gator" ? ALLEY_GATOR.width : POP_WALL.width;
-  const hit = Math.abs(ballX - wallX) <= width * 0.5 + BALL_CONTACT_RADIUS + HAZARD_PROXIMITY_BUFFER;
+  const hit = Math.abs(ballX - wallX) <= width * 0.5 + BALL_CONTACT_RADIUS;
   if (!hit) return { blocked: false, smashed: false, bypassed: true };
   if (powerup === "bomb") return { blocked: false, smashed: true, bypassed: true };
   if (powerup === "lightning") return { blocked: false, smashed: false, bypassed: true };
