@@ -24,6 +24,7 @@ export default function LaneHazardOverlay() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeRef = useRef(false);
+  const cycleRef = useRef(0);
   const gatorX = useSharedValue(150);
   const gatorY = useSharedValue(12);
   const gatorScale = useSharedValue(0.86);
@@ -64,9 +65,10 @@ export default function LaneHazardOverlay() {
     cleanupRef.current.push(setTimeout(() => setChomp(false), 260));
   };
 
-  const schedule = () => {
-    const wait = 12000 + Math.floor(Math.random() * 7000);
+  const schedule = (first = false) => {
+    const wait = first ? 1800 : 6500 + Math.floor(Math.random() * 3500);
     timerRef.current = setTimeout(() => {
+      cycleRef.current += 1;
       setVisible(true);
       setWarning(true);
       setImpactText("GATOR GOT IT!");
@@ -99,7 +101,7 @@ export default function LaneHazardOverlay() {
           withTiming(-6, { duration: 80 }),
           withTiming(4, { duration: 70 }),
           withTiming(0, { duration: 70 }),
-          withTiming(0, { duration: 430 }),
+          withTiming(0, { duration: 2200 }),
           withTiming(150, { duration: 330, easing: Easing.in(Easing.quad) }),
         );
         gatorY.value = withSequence(
@@ -116,8 +118,8 @@ export default function LaneHazardOverlay() {
           activeRef.current = false;
           setWebHazardActive("alley-gator", false);
           setVisible(false);
-          schedule();
-        }, 1300));
+          schedule(false);
+        }, 3200));
       }, 900));
     }, wait);
   };
@@ -146,7 +148,7 @@ export default function LaneHazardOverlay() {
         gatorOpacity.value = withTiming(0, { duration: 300 });
         cleanupRef.current.push(setTimeout(() => {
           setVisible(false);
-          schedule();
+          schedule(false);
         }, 340));
       } else if (detail.powerup === "lightning") {
         setImpactText("ZAP! LIGHTNING GOT THROUGH!");
@@ -173,7 +175,7 @@ export default function LaneHazardOverlay() {
     };
 
     window.addEventListener("super-strike-hazard", onImpact as EventListener);
-    schedule();
+    schedule(true);
     return () => {
       window.removeEventListener("super-strike-hazard", onImpact as EventListener);
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -245,11 +247,12 @@ const styles = StyleSheet.create({
     shadowColor: "#7CFF49",
     shadowOpacity: 0.8,
     shadowRadius: 16,
+    zIndex: 9999,
   },
   warningTop: { color: "#dfffca", fontWeight: "900", fontSize: 14, letterSpacing: 1.2 },
   warningMain: { color: "white", fontWeight: "900", fontSize: 30, marginTop: 3 },
   warningSub: { color: "#7CFF49", fontWeight: "800", fontSize: 12, marginTop: 2, letterSpacing: 0.8 },
-  gatorWrap: { position: "absolute", right: 8, bottom: "29%", width: 170 },
+  gatorWrap: { position: "absolute", right: 8, bottom: "29%", width: 170, zIndex: 9999 },
   gatorHead: {
     backgroundColor: "#194d2b",
     borderWidth: 3,
