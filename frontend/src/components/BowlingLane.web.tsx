@@ -11,7 +11,7 @@ import * as THREE from "three";
 import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
 import { SKIN_MAP } from "@/src/game/skins";
-import { POP_WALL, popWallOutcome } from "@/src/game/hazards";
+import { POP_WALL, BALL_CONTACT_RADIUS, activeWebHazard, popWallOutcome } from "@/src/game/hazards";
 
 export interface ThrowState {
   key: number;
@@ -283,20 +283,9 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     cameraRef.current = camera;
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x1a1206, 0.7));
-    const key = new THREE.DirectionalLight(0xfff2d8, 1.1); key.position.set(1.5, 4, 2); scene.add(key);
-    const deckLight = new THREE.PointLight(0xffffff, 2.2, 9); deckLight.position.set(0, 2.4, PIN_FRONT_Z - ROW_GAP * 1.5); scene.add(deckLight);
-    const neonA = new THREE.PointLight(0x22e1ff, 0.8, 12); neonA.position.set(-1.8, 1.6, -3); scene.add(neonA);
-    const neonB = new THREE.PointLight(0x8a4bff, 0.7, 12); neonB.position.set(1.8, 1.6, -5); scene.add(neonB);
-
-    const laneLen = BALL_START_Z - (PIN_FRONT_Z - ROW_GAP * 3 - 0.8);
-    const laneCz = (BALL_START_Z + (PIN_FRONT_Z - ROW_GAP * 3 - 0.8)) / 2;
-    const lane = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2, 0.1, laneLen), new THREE.MeshStandardMaterial({ map: makeWoodTexture(), color: 0xffffff, roughness: 0.18, metalness: 0.35 }));
-    lane.position.set(0, -0.05, laneCz); scene.add(lane);
-    const sheen = new THREE.Mesh(new THREE.PlaneGeometry(LANE_HALF * 0.9, laneLen), new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }));
-    sheen.rotation.x = -Math.PI / 2; sheen.position.set(0, 0.011, laneCz); scene.add(sheen);
-    const gutMat = new THREE.MeshStandardMaterial({ color: 0x0a0c10, roughness: 0.6, metalness: 0.5 });
-    [-1, 1].forEach((sd) => { const g = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, laneLen), gutMat); g.position.set(sd * (LANE_HALF + 0.11), -0.1, laneCz); scene.add(g); });
+    const laneLen = 12;
+    const laneCz = -3.7;
+    const lane = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2, 0.08, laneLen), new THREE.MeshStandardMaterial({ map: makeWoodTexture(), roughness: 0.45, metalness: 0.05 })); lane.position.set(0, -0.04, laneCz); scene.add(lane);
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.45, metalness: 0.85 });
     const graffiti = makeGraffitiTexture();
     [-1, 1].forEach((sd) => {
@@ -354,18 +343,26 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         const rf = reflectRef.current!; rf.position.set(x, 0.012, z); rf.scale.setScalar(sc); (rf.material as THREE.MeshBasicMaterial).opacity = 0.3 * (1 - t * 0.5);
         camDz = -0.55 * Math.sin(Math.PI * t); camDy = -0.06 * Math.sin(Math.PI * t);
 
-        if (!a.hazardChecked && z <= POP_WALL.z) {
-          a.hazardChecked = true;
-          const outcome = popWallOutcome(a.powerup, x, 0);
-          window.dispatchEvent(new CustomEvent("super-strike-hazard", { detail: { type: "pop-wall-impact", powerup: a.powerup, ballX: x } }));
-          if (outcome.blocked) {
-            a.arrived = true;
-            a.active = false;
-            b.visible = false;
-            rf.visible = false;
-            impactRef.current.set(x, 0, POP_WALL.z);
-            shakeRef.current = 0.22;
-            onHazardBlockedRef.current?.();
+        const wallFrontZ = POP_WALL.z + POP_WALL.depth * 0.5;
+        const contactZ = wallFrontZ + BALL_CONTACT_RADIUS;
+        const passedZ = POP_WALL.z - POP_WALL.depth * 0.5 - BALL_CONTACT_RADIUS;
+        if (!a.hazardChecked && z <= contactZ) {
+          const activeHazard = activeWebHazard();
+          if (activeHazard) {
+            const outcome = popWallOutcome(a.powerup, x, 0);
+            window.dispatchEvent(new CustomEvent("super-strike-hazard", { detail: { type: "pop-wall-impact", hazard: activeHazard, powerup: a.powerup, ballX: x } }));
+            a.hazardChecked = true;
+            if (outcome.blocked) {
+              a.arrived = true;
+              a.active = false;
+              b.visible = false;
+              rf.visible = false;
+              impactRef.current.set(x, 0, POP_WALL.z);
+              shakeRef.current = activeHazard === "alley-gator" ? 0.28 : 0.22;
+              onHazardBlockedRef.current?.();
+            }
+          } else if (z <= passedZ) {
+            a.hazardChecked = true;
           }
         }
 
