@@ -9,13 +9,13 @@ export interface PlayerIdentity {
   name: string;
 }
 
-// Ensure a local player identity exists (creates one on the backend once).
+// Cache the signed-in HYPHSWORLD identity; authorization is always rechecked by Supabase.
 export async function ensurePlayer(): Promise<PlayerIdentity> {
   const id = await storage.getItem<string>(ID_KEY, "");
   const name = await storage.getItem<string>(NAME_KEY, "");
   if (id && name) return { id, name };
 
-  const fallbackName = name || `Bowler${Math.floor(Math.random() * 9000 + 1000)}`;
+  const fallbackName = name || "HYPHSWORLD Bowler";
   const player = await api.createPlayer(fallbackName);
   await storage.setItem(ID_KEY, player.id);
   await storage.setItem(NAME_KEY, player.name);
