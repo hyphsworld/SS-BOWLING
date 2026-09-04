@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
+  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,11 +33,18 @@ export default function Home() {
   return (
     <View style={styles.container}>
       <View style={styles.heroWrap}>
-        <LinearGradient
-          colors={["#17121F", "#38204F", "#FF2D55", colors.surface]}
-          locations={[0, 0.5, 0.82, 1]}
+        <ImageBackground
+          source={require("@/assets/images/super-strike-cover.png")}
+          resizeMode="cover"
+          imageStyle={styles.coverImage}
           style={StyleSheet.absoluteFill}
-        />
+        >
+          <LinearGradient
+            colors={["rgba(0,0,0,0.16)", "rgba(0,0,0,0.08)", "rgba(0,0,0,0.84)"]}
+            locations={[0, 0.54, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+        </ImageBackground>
         <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
           <View style={styles.pill}>
             <Ionicons name="person-circle" size={18} color={colors.onSurface} />
@@ -56,48 +64,29 @@ export default function Home() {
           </View>
         </View>
 
-        <View style={styles.brandMark}>
-          <Text style={styles.brandMarkText}>AMS WEST</Text>
-        </View>
-
         <Animated.View
           entering={FadeInDown.duration(500)}
-          style={styles.titleWrap}
+          style={styles.modeOverlay}
         >
-          <Text style={styles.titleSmall}>SUPER</Text>
-          <Text style={styles.titleBig}>STRIKE</Text>
-          <Text style={styles.tagline}>Power up. Knock {"'"}em all down.</Text>
+          <Text style={styles.chooseMode}>CHOOSE YOUR GAME</Text>
+          <View style={styles.modeRow}>
+            <Pressable testID="mode-solo-button" style={[styles.coverMode, styles.soloMode]} onPress={() => router.push("/game?mode=solo")}>
+              <Ionicons name="game-controller" size={20} color="#FFFFFF" />
+              <Text style={styles.coverModeText}>SOLO</Text>
+            </Pressable>
+            <Pressable testID="mode-cpu-button" style={[styles.coverMode, styles.cpuMode]} onPress={() => router.push("/game?mode=cpu")}>
+              <Ionicons name="hardware-chip" size={20} color="#FFFFFF" />
+              <Text style={styles.coverModeText}>VS CPU</Text>
+            </Pressable>
+            <Pressable testID="mode-multiplayer-button" style={[styles.coverMode, styles.multiMode]} onPress={() => router.push("/multiplayer")}>
+              <Ionicons name="people" size={20} color="#101014" />
+              <Text style={[styles.coverModeText, styles.multiModeText]}>MULTI</Text>
+            </Pressable>
+          </View>
         </Animated.View>
       </View>
 
       <View style={[styles.menu, { paddingBottom: insets.bottom + spacing.lg }]}>
-        <Animated.View entering={FadeInDown.delay(100)}>
-          <PrimaryButton
-            testID="mode-solo-button"
-            label="Solo Play"
-            icon="game-controller"
-            variant="primary"
-            onPress={() => router.push("/game?mode=solo")}
-          />
-        </Animated.View>
-        <Animated.View entering={FadeInDown.delay(180)}>
-          <PrimaryButton
-            testID="mode-cpu-button"
-            label="Vs CPU"
-            icon="hardware-chip"
-            variant="dark"
-            onPress={() => router.push("/game?mode=cpu")}
-          />
-        </Animated.View>
-        <Animated.View entering={FadeInDown.delay(260)}>
-          <PrimaryButton
-            testID="mode-multiplayer-button"
-            label="Multiplayer"
-            icon="people"
-            variant="secondary"
-            onPress={() => router.push("/multiplayer")}
-          />
-        </Animated.View>
         <Animated.View entering={FadeInDown.delay(320)}>
           <PrimaryButton
             testID="ai-coach-button"
@@ -139,11 +128,12 @@ export default function Home() {
 }
 
 const { height } = Dimensions.get("window");
-const heroHeight = Math.min(360, Math.max(260, height * 0.38));
+const heroHeight = Math.min(650, Math.max(470, height * 0.67));
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   heroWrap: { height: heroHeight, overflow: "hidden" },
+  coverImage: { opacity: 1 },
   brandMark: {
     position: "absolute",
     top: 70,
@@ -180,11 +170,26 @@ const styles = StyleSheet.create({
   },
   pillText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
   topRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  titleWrap: {
+  modeOverlay: {
     position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
     bottom: spacing.lg,
-    left: spacing.xl,
+    backgroundColor: "rgba(5,5,10,0.82)",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.86)",
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    ...shadow.card,
   },
+  chooseMode: { fontFamily: font.display, fontSize: type.base, color: "#FFFFFF", textAlign: "center", letterSpacing: 2, marginBottom: spacing.sm },
+  modeRow: { flexDirection: "row", gap: spacing.sm },
+  coverMode: { flex: 1, minHeight: 62, borderRadius: radius.lg, alignItems: "center", justifyContent: "center", gap: 3, borderWidth: 2, borderColor: "rgba(255,255,255,0.75)" },
+  soloMode: { backgroundColor: "#E91E73" },
+  cpuMode: { backgroundColor: "#087DDC" },
+  multiMode: { backgroundColor: "#A8CE00" },
+  coverModeText: { fontFamily: font.display, fontSize: type.sm, color: "#FFFFFF", letterSpacing: 0.4 },
+  multiModeText: { color: "#101014" },
   titleSmall: {
     fontFamily: font.display,
     fontSize: type.xl,
@@ -206,8 +211,8 @@ const styles = StyleSheet.create({
   menu: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    gap: spacing.md,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
     justifyContent: "center",
   },
   secondaryRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.xs },

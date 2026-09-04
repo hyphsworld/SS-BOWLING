@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -214,8 +214,11 @@ export default function LaneHazardOverlay() {
       {!warning && (
         <Animated.View style={[styles.gatorWrap, gatorStyle]}>
           <View style={[styles.gatorHead, chomp && styles.gatorHeadChomp]}>
-            <Text style={styles.gatorEyes}>{chomp ? "😠" : "👀"}</Text>
-            <Text style={[styles.gatorEmoji, chomp && styles.gatorEmojiChomp]}>🐊</Text>
+            <Image
+              source={require("@/assets/images/alley-gator-2d.png")}
+              resizeMode="contain"
+              style={[styles.gatorArt, chomp && styles.gatorArtChomp]}
+            />
             <Text style={styles.gatorLabel}>ALLEY-GATOR</Text>
             <Text style={styles.gatorGotIt}>{impactText}</Text>
             {chomp && <Text style={styles.chompBurst}>CHOMP!</Text>}
@@ -252,7 +255,7 @@ const styles = StyleSheet.create({
   warningTop: { color: "#dfffca", fontWeight: "900", fontSize: 14, letterSpacing: 1.2 },
   warningMain: { color: "white", fontWeight: "900", fontSize: 30, marginTop: 3 },
   warningSub: { color: "#7CFF49", fontWeight: "800", fontSize: 12, marginTop: 2, letterSpacing: 0.8 },
-  gatorWrap: { position: "absolute", right: 8, bottom: "29%", width: 170, zIndex: 9999 },
+  gatorWrap: { position: "absolute", right: 8, bottom: "27%", width: 205, zIndex: 9999 },
   gatorHead: {
     backgroundColor: "#194d2b",
     borderWidth: 3,
@@ -270,9 +273,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 24,
   },
-  gatorEyes: { fontSize: 19, marginBottom: -8 },
-  gatorEmoji: { fontSize: 60, lineHeight: 66 },
-  gatorEmojiChomp: { fontSize: 68, lineHeight: 72 },
+  gatorArt: { width: 160, height: 132, marginTop: -38, marginBottom: -9 },
+  gatorArtChomp: { width: 174, height: 142, transform: [{ rotate: "-4deg" }] },
   gatorLabel: { color: "#dfffca", fontWeight: "900", fontSize: 13, letterSpacing: 0.8 },
   gatorGotIt: { color: "#ffd34d", fontWeight: "900", fontSize: 11, marginTop: 2, textAlign: "center" },
   chompBurst: {
