@@ -6,7 +6,6 @@ import {
   Pressable,
   Dimensions,
 } from "react-native";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -17,9 +16,6 @@ import PrimaryButton from "@/src/components/PrimaryButton";
 import SoundToggle from "@/src/components/SoundToggle";
 import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { ensurePlayer, getName } from "@/src/store/player";
-
-const HERO =
-  "https://images.unsplash.com/photo-1763819527452-f01bfb155013?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwzfHwzZCUyMGNhcnRvb24lMjBib3dsaW5nJTIwYWxsZXklMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85";
 
 export default function Home() {
   const router = useRouter();
@@ -36,10 +32,9 @@ export default function Home() {
   return (
     <View style={styles.container}>
       <View style={styles.heroWrap}>
-        <Image source={{ uri: HERO }} style={StyleSheet.absoluteFill} contentFit="cover" />
         <LinearGradient
-          colors={["rgba(255,249,240,0)", "rgba(28,28,30,0.15)", colors.surface]}
-          locations={[0, 0.55, 1]}
+          colors={["#17121F", "#38204F", "#FF2D55", colors.surface]}
+          locations={[0, 0.5, 0.82, 1]}
           style={StyleSheet.absoluteFill}
         />
         <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
@@ -59,6 +54,10 @@ export default function Home() {
             </Pressable>
             <SoundToggle />
           </View>
+        </View>
+
+        <View style={styles.brandMark}>
+          <Text style={styles.brandMarkText}>AMS WEST</Text>
         </View>
 
         <Animated.View
@@ -140,10 +139,28 @@ export default function Home() {
 }
 
 const { height } = Dimensions.get("window");
+const heroHeight = Math.min(360, Math.max(260, height * 0.38));
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  heroWrap: { height: height * 0.5 },
+  heroWrap: { height: heroHeight, overflow: "hidden" },
+  brandMark: {
+    position: "absolute",
+    top: 70,
+    alignSelf: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.78)",
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(0,0,0,0.22)",
+  },
+  brandMarkText: {
+    fontFamily: font.display,
+    fontSize: type.lg,
+    letterSpacing: 3,
+    color: "#FFFFFF",
+  },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -177,13 +194,13 @@ const styles = StyleSheet.create({
   titleBig: {
     fontFamily: font.display,
     fontSize: type["4xl"],
-    color: colors.onSurface,
+    color: "#FFFFFF",
     lineHeight: type["4xl"] + 4,
   },
   tagline: {
     fontFamily: font.text,
     fontSize: type.lg,
-    color: colors.onSurfaceSecondary,
+    color: "#FFFFFF",
     marginTop: spacing.xs,
   },
   menu: {
