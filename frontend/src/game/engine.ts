@@ -172,6 +172,24 @@ export interface ScoreResult {
   total: number;
 }
 
+// Converts one recorded roll into the compact symbol used by the scorecard.
+// Keeping this in the scoring engine makes the web and native scorecards share
+// the same strike, spare, gutter, and tenth-frame rules.
+export function rollSymbol(frameIndex: number, rollIndex: number, rolls: number[]): string {
+  const pins = rolls[rollIndex];
+  if (pins === undefined) return "";
+  if (pins === 0) return "-";
+  if (pins === 10) return "X";
+
+  if (rollIndex > 0) {
+    const previous = rolls[rollIndex - 1];
+    const startsFreshRack = frameIndex === 9 && previous === 10;
+    if (!startsFreshRack && previous + pins === 10) return "/";
+  }
+
+  return String(pins);
+}
+
 export function scoreGame(frames: Frame[]): ScoreResult {
   const rolls: number[] = [];
   const frameStart: number[] = [];
