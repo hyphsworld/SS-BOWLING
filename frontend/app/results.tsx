@@ -33,6 +33,8 @@ export default function Results() {
     result?: string;
     strikes?: string;
     spares?: string;
+    rewardPoints?: string;
+    balance?: string;
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -44,8 +46,12 @@ export default function Results() {
   const result = params.result || "";
   const strikes = Number(params.strikes || 0);
   const spares = Number(params.spares || 0);
+  const initialReward = Number(params.rewardPoints || 0);
+  const initialBalance = Number(params.balance || 0);
 
   const [coachTip, setCoachTip] = useState<string | null>(null);
+  const [rewardPoints, setRewardPoints] = useState(initialReward);
+  const [balance, setBalance] = useState(initialBalance);
 
   useEffect(() => {
     const win = result === "win" || (mode === "solo" && myScore >= 150);
@@ -59,7 +65,7 @@ export default function Results() {
     (async () => {
       try {
         const p = await ensurePlayer();
-        await api.submitScore({
+        const submitted = await api.submitScore({
           player_id: p.id,
           name: p.name,
           score: myScore,
@@ -68,7 +74,11 @@ export default function Results() {
           spares,
           result: result || null,
         });
-      } catch (e) {}
+        if (!cancelled) {
+          if (mode !== "multiplayer") setRewardPoints(Number(submitted?.points_delta || 0));
+          if (Number.isFinite(Number(submitted?.balance))) setBalance(Number(submitted.balance));
+        }
+      } catch (_) {}
 
       if (mode === "cpu" && (result === "win" || result === "lose" || result === "tie")) {
         recordRivalResult(result).catch(() => {});
@@ -85,7 +95,7 @@ export default function Results() {
         coachTimer = null;
         setCoachTip(tip);
         if (tip) speak(tip);
-      } catch (e) {
+      } catch (_) {
         if (cancelled) return;
         if (coachTimer) clearTimeout(coachTimer);
         coachTimer = null;
@@ -157,6 +167,14 @@ export default function Results() {
               <Text style={styles.statText}>{spares} Spares</Text>
             </View>
           </View>
+
+          <View style={styles.pointsCard} testID="cool-points-reward">
+            <Ionicons name="sparkles" size={20} color={colors.brandSecondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pointsTitle}>{rewardPoints > 0 ? `+${rewardPoints} COOL POINTS` : "COOL POINTS SAVED"}</Text>
+              <Text style={styles.pointsSub}>Server-verified reward • Balance {balance}</Text>
+            </View>
+          </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(350)} style={styles.coachCard}>
@@ -213,6 +231,9 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: "row", gap: spacing.md, justifyContent: "center" },
   statChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   statText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  pointsCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1.5, borderColor: colors.brandSecondary },
+  pointsTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.brandSecondary },
+  pointsSub: { fontFamily: font.text, fontSize: type.sm, color: colors.onSurfaceSecondary, marginTop: 2 },
   coachCard: { width: "100%", backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1.5, borderColor: colors.brandPrimary, ...shadow.card },
   coachHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   coachTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.brandPrimary },

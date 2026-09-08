@@ -24,7 +24,7 @@ import {
   countSpares,
   ThrowResult,
 } from "@/src/game/engine";
-import { api } from "@/src/api/client";
+import { api, Room } from "@/src/api/client";
 import { ensurePlayer } from "@/src/store/player";
 import { playSound, stopSound } from "@/src/audio/sounds";
 import { getRival, Rival } from "@/src/store/rival";
@@ -63,6 +63,7 @@ export default function Game() {
   const [oppRemote, setOppRemote] = useState<{ name: string; score: number; finished: boolean } | null>(null);
   const [quip, setQuip] = useState<{ text: string; voice: "commentator" | "cpu" } | null>(null);
   const [intermissionText, setIntermissionText] = useState<string | null>(null);
+  const [playerId, setPlayerId] = useState("");
   const quipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intermissionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEvent = useRef<"strike" | "spare" | "gutter" | "open">("open");
@@ -79,12 +80,15 @@ export default function Game() {
   const [ballSkin, setBallSkin] = useState("classic");
 
   useEffect(() => {
-    ensurePlayer().then((p) => { identity.current = p; }).catch(() => {});
+    ensurePlayer().then((p) => {
+      identity.current = p;
+      setPlayerId(p.id);
+    }).catch(() => {});
     getSelectedSkin().then(setBallSkin);
     if (mode === "cpu") {
       getRival().then((r) => { rivalRef.current = r; setRivalName(r.name); });
     }
-  }, []);
+  }, [mode]);
 
   const activeGame = active === "me" ? meRef.current : oppRef.current;
 
@@ -115,29 +119,87 @@ export default function Game() {
     }
   };
 
+  const finishMultiplayer = useCallback((room: Room) => {
+    if (routed.current) return;
+    routed.current = true;
+    const my = scoreGame(meRef.current.frames).total;
+    const currentId = identity.current.id;
+    const opponent = room.players.find((p) => p.id !== currentId);
+    let result = "tie";
+    if (room.winner === "tie") result = "tie";
+    else if (room.winner === currentId) result = "win";
+    else if (room.winner) result = "lose";
+
+    router.replace({
+      pathname: "/results",
+      params: {
+        mode: "multiplayer",
+        myScore: String(my),
+        oppScore: String(opponent?.score ?? 0),
+        oppName: opponent?.name ?? "Opponent",
+        result,
+        strikes: String(countStrikes(meRef.current.frames)),
+        spares: String(countSpares(meRef.current.frames)),
+        rewardPoints: String(room.reward_amount ?? 0),
+        balance: String(room.balance ?? 0),
+      },
+    });
+  }, [router]);
+
+  const handleRoom = useCallback((room: Room) => {
+    const id = identity.current.id || playerId;
+    const opp = room.players.find((p) => p.id !== id);
+    if (opp) setOppRemote({ name: opp.name, score: opp.score, finished: opp.finished });
+    if (room.status === "finished" && meRef.current.done) finishMultiplayer(room);
+  }, [finishMultiplayer, playerId]);
+
   const postProgress = useCallback(async (finished: boolean) => {
     if (mode !== "multiplayer" || !code) return;
     const score = scoreGame(meRef.current.frames).total;
     try {
-      const room = await api.updateProgress(code, { player_id: identity.current.id, name: identity.current.name, score, current_frame: meRef.current.currentFrame, finished });
-      const opp = room.players.find((p) => p.id !== identity.current.id);
-      if (opp) setOppRemote({ name: opp.name, score: opp.score, finished: opp.finished });
-      if (room.status === "finished" && meRef.current.done) finishMultiplayer(room.winner);
-    } catch (e) {}
-  }, [mode, code]);
+      if (!identity.current.id) {
+        const p = await ensurePlayer();
+        identity.current = p;
+        setPlayerId(p.id);
+      }
+      const room = await api.updateProgress(code, {
+        player_id: identity.current.id,
+        name: identity.current.name,
+        score,
+        current_frame: meRef.current.currentFrame,
+        finished,
+      });
+      handleRoom(room);
+    } catch (_) {}
+  }, [mode, code, handleRoom]);
 
   useEffect(() => {
-    if (mode !== "multiplayer" || !code) return;
-    const iv = setInterval(async () => {
+    if (mode !== "multiplayer" || !code || !playerId) return;
+    let stopped = false;
+    let stopRealtime: (() => void) | null = null;
+
+    const connect = async () => {
       try {
         const room = await api.getRoom(code);
-        const opp = room.players.find((p) => p.id !== identity.current.id);
-        if (opp) setOppRemote({ name: opp.name, score: opp.score, finished: opp.finished });
-        if (room.status === "finished" && meRef.current.done) finishMultiplayer(room.winner);
-      } catch (e) {}
-    }, 2500);
-    return () => clearInterval(iv);
-  }, [mode, code]);
+        if (stopped) return;
+        handleRoom(room);
+        if (room.id) stopRealtime = api.watchRoom(code, room.id, handleRoom);
+      } catch (_) {}
+    };
+
+    connect();
+    const fallback = setInterval(async () => {
+      try {
+        handleRoom(await api.getRoom(code));
+      } catch (_) {}
+    }, 8000);
+
+    return () => {
+      stopped = true;
+      clearInterval(fallback);
+      if (stopRealtime) stopRealtime();
+    };
+  }, [mode, code, playerId, handleRoom]);
 
   const beginIntermission = (res: ThrowResult) => {
     setPhase("intermission");
@@ -173,12 +235,8 @@ export default function Game() {
     setArmed(null);
     setKnockdown({ key: throwKey.current, pins: res.knocked });
     stopSound("ball_roll");
-
-    // Audio now follows the physical result event: one pin impact sound at arrival.
-    // No delayed pin knock or strike/spare stinger to drift behind the animation.
     if (res.knockedCount > 0) playSound("pin_crash");
     else playSound("gutter");
-
     finishResolvedThrow(res, p.owner);
   };
 
@@ -208,7 +266,12 @@ export default function Game() {
   const resetNext = () => { setActive("me"); setPhase("aim"); };
 
   const afterPlayerThrow = (res: ThrowResult) => {
-    if (mode === "multiplayer") { postProgress(meRef.current.done); if (meRef.current.done) { setPhase("over"); return; } resetNext(); return; }
+    if (mode === "multiplayer") {
+      postProgress(meRef.current.done);
+      if (meRef.current.done) { setPhase("over"); return; }
+      resetNext();
+      return;
+    }
     if (mode === "cpu") { if (res.frameEnded) { startCpuTurn(); return; } resetNext(); return; }
     if (meRef.current.done) { finishSolo(); return; }
     resetNext();
@@ -231,13 +294,10 @@ export default function Game() {
     if (routed.current) return; routed.current = true; const total = scoreGame(meRef.current.frames).total;
     router.replace({ pathname: "/results", params: { mode: "solo", myScore: String(total), strikes: String(countStrikes(meRef.current.frames)), spares: String(countSpares(meRef.current.frames)) } });
   };
+
   const finishVsCpu = () => {
     if (routed.current) return; routed.current = true; const my = scoreGame(meRef.current.frames).total; const opp = scoreGame(oppRef.current.frames).total; const result = my > opp ? "win" : my < opp ? "lose" : "tie";
     router.replace({ pathname: "/results", params: { mode: "cpu", myScore: String(my), oppScore: String(opp), oppName: rivalName, result, strikes: String(countStrikes(meRef.current.frames)), spares: String(countSpares(meRef.current.frames)) } });
-  };
-  const finishMultiplayer = (winner: string | null) => {
-    if (routed.current) return; routed.current = true; const my = scoreGame(meRef.current.frames).total; let result = "tie"; if (winner === "tie") result = "tie"; else if (winner === identity.current.id) result = "win"; else if (winner) result = "lose";
-    router.replace({ pathname: "/results", params: { mode: "multiplayer", myScore: String(my), oppScore: String(oppRemote?.score ?? 0), oppName: oppRemote?.name ?? "Opponent", result, strikes: String(countStrikes(meRef.current.frames)), spares: String(countSpares(meRef.current.frames)) } });
   };
 
   const myTotal = scoreGame(meRef.current.frames).total;
@@ -263,7 +323,7 @@ export default function Game() {
       {phase === "intermission" && intermissionText && <View style={styles.intermission}><Text style={styles.intermissionText}>{intermissionText}</Text></View>}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing.sm }]}>
         <PowerUpTray energy={activeGame.energy} armed={armed} onArm={isMyTurn && phase === "aim" ? setArmed : () => {}} />
-        {isMyTurn ? <TimingMeters phase={phase as "aim" | "power"} onLockAim={onLockAim} onLockPower={onLockPower} /> : <Glass style={styles.waitBox}><Text style={styles.waitText}>{phase === "cpu" ? `${rivalName} BOWLING…` : phase === "intermission" ? "RESETTING LANE…" : "BALL IN MOTION…"}</Text></Glass>}
+        {isMyTurn ? <TimingMeters phase={phase as "aim" | "power"} onLockAim={onLockAim} onLockPower={onLockPower} /> : <Glass style={styles.waitBox}><Text style={styles.waitText}>{phase === "cpu" ? `${rivalName} BOWLING…` : phase === "intermission" ? "RESETTING LANE…" : phase === "over" && mode === "multiplayer" ? "WAITING FOR FINAL SCORE…" : "BALL IN MOTION…"}</Text></Glass>}
       </View>
       {banner && <Animated.View entering={FadeIn.duration(100)} style={styles.banner}><Text style={styles.bannerText}>{banner}</Text></Animated.View>}
       <Celebration event={banner === "STRIKE!" ? "strike" : banner === "SPARE!" ? "spare" : null} />

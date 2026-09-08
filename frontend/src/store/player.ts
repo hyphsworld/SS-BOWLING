@@ -1,5 +1,5 @@
 import { storage } from "@/src/utils/storage";
-import { api } from "@/src/api/client";
+import { api, supabase } from "@/src/api/client";
 
 const ID_KEY = "ss_player_id";
 const NAME_KEY = "ss_player_name";
@@ -9,13 +9,22 @@ export interface PlayerIdentity {
   name: string;
 }
 
-// Cache the signed-in HYPHSWORLD identity; authorization is always rechecked by Supabase.
+// The cache is only a convenience. The active Supabase user is authoritative so
+// a logout/login on the same device can never inherit another account's player id.
 export async function ensurePlayer(): Promise<PlayerIdentity> {
-  const id = await storage.getItem<string>(ID_KEY, "");
-  const name = await storage.getItem<string>(NAME_KEY, "");
-  if (id && name) return { id, name };
+  const cachedId = await storage.getItem<string>(ID_KEY, "");
+  const cachedName = await storage.getItem<string>(NAME_KEY, "");
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  const fallbackName = name || "HYPHSWORLD Bowler";
+  if (error || !user) {
+    throw new Error("Sign in to HYPHSWORLD to use online Super Strike features.");
+  }
+
+  if (cachedId === user.id && cachedName) {
+    return { id: cachedId, name: cachedName };
+  }
+
+  const fallbackName = cachedName || user.email?.split("@")[0] || "HYPHSWORLD Bowler";
   const player = await api.createPlayer(fallbackName);
   await storage.setItem(ID_KEY, player.id);
   await storage.setItem(NAME_KEY, player.name);

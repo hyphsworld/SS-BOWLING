@@ -13,6 +13,7 @@ async function requireUser() {
   if (error || !user) throw new Error("Sign in to HYPHSWORLD to use online Super Strike features.");
   return user;
 }
+
 async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
   await requireUser();
   const { data, error } = await supabase.rpc(name, args);
@@ -20,8 +21,24 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise
   return data as T;
 }
 
-export interface RoomPlayer { id: string; name: string; score: number; current_frame: number; finished: boolean; is_host: boolean; }
-export interface Room { code: string; status: "waiting" | "playing" | "finished"; winner: string | null; players: RoomPlayer[]; }
+export interface RoomPlayer {
+  id: string;
+  name: string;
+  score: number;
+  current_frame: number;
+  finished: boolean;
+  is_host: boolean;
+}
+
+export interface Room {
+  id: string;
+  code: string;
+  status: "waiting" | "playing" | "finished";
+  winner: string | null;
+  reward_amount?: number;
+  balance?: number;
+  players: RoomPlayer[];
+}
 
 const localQuip = (event: string) => ({ text:
   event === "strike" ? "That was pure pressure — STRIKE!" :
@@ -29,6 +46,52 @@ const localQuip = (event: string) => ({ text:
   event === "gutter" ? "Shake it off and line up the next one." :
   "Stay locked in and hit your mark."
 });
+
+function watchRoom(code: string, roomId: string, onRoom: (room: Room) => void) {
+  let closed = false;
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const refresh = () => {
+    if (closed) return;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(async () => {
+      try {
+        const room = await api.getRoom(code);
+        if (!closed) onRoom(room);
+      } catch (_) {}
+    }, 90);
+  };
+
+  const channel = supabase
+    .channel(`super-strike:${roomId}:${Math.random().toString(36).slice(2, 8)}`)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "game_rooms",
+      filter: `id=eq.${roomId}`,
+    }, refresh)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "game_players",
+      filter: `room_id=eq.${roomId}`,
+    }, refresh)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "game_state",
+      filter: `room_id=eq.${roomId}`,
+    }, refresh)
+    .subscribe();
+
+  refresh();
+
+  return () => {
+    closed = true;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    supabase.removeChannel(channel).catch(() => {});
+  };
+}
 
 export const api = {
   createPlayer: async (name: string) => {
@@ -40,6 +103,7 @@ export const api = {
     if (error) throw new Error(error.message);
     return { id: data.id, name: data.display_name || cleanName };
   },
+
   getStats: async (_playerId: string) => {
     const user = await requireUser();
     const { data, error } = await supabase.from("game_scores").select("score, metadata")
@@ -55,24 +119,46 @@ export const api = {
       wins: rows.filter((row) => (row.metadata as any)?.result === "win").length,
     };
   },
+
   submitScore: async (payload: { player_id: string; name: string; score: number; mode: string; strikes: number; spares: number; result?: string | null }) =>
-    rpc("submit_game_run", { p_game_key: "super_strike", p_score: payload.score, p_points_delta: 0,
-      p_metadata: { mode: payload.mode, strikes: payload.strikes, spares: payload.spares, result: payload.result || null } }),
+    rpc<{ ok: boolean; score: number; points_delta: number; balance: number }>("submit_game_run", {
+      p_game_key: "super_strike",
+      p_score: payload.score,
+      p_points_delta: 0,
+      p_metadata: {
+        mode: payload.mode,
+        strikes: payload.strikes,
+        spares: payload.spares,
+        result: payload.result || null,
+      },
+    }),
+
   leaderboard: async (limit = 20): Promise<Array<{ id: string; name: string; score: number; mode: string; strikes: number }>> => {
     const { data, error } = await supabase.from("game_scores")
       .select("user_id, score, metadata, profiles!game_scores_user_id_fkey(display_name)")
       .eq("game_key", "super_strike").order("score", { ascending: false }).limit(limit);
     if (error) throw new Error(error.message);
-    return (data || []).map((row: any) => ({ id: row.user_id,
-      name: row.profiles?.display_name || "HYPHSWORLD Bowler", score: row.score,
-      mode: String(row.metadata?.mode || "solo"), strikes: Number(row.metadata?.strikes || 0) }));
+    return (data || []).map((row: any) => ({
+      id: row.user_id,
+      name: row.profiles?.display_name || "HYPHSWORLD Bowler",
+      score: row.score,
+      mode: String(row.metadata?.mode || "solo"),
+      strikes: Number(row.metadata?.strikes || 0),
+    }));
   },
+
   createRoom: async (_playerId: string, _name: string): Promise<Room> => rpc("create_super_strike_room"),
   joinRoom: async (code: string, _playerId: string, _name: string): Promise<Room> => rpc("join_super_strike_room", { p_room_code: code }),
   getRoom: async (code: string): Promise<Room> => rpc("get_super_strike_room", { p_room_code: code }),
+  watchRoom,
   updateProgress: async (code: string, payload: { player_id?: string; name?: string; score: number; current_frame: number; finished: boolean }): Promise<Room> =>
-    rpc("update_super_strike_room", { p_room_code: code, p_score: payload.score,
-      p_current_frame: payload.current_frame, p_finished: payload.finished }),
+    rpc("update_super_strike_room", {
+      p_room_code: code,
+      p_score: payload.score,
+      p_current_frame: payload.current_frame,
+      p_finished: payload.finished,
+    }),
+
   aiQuip: async (payload: { voice?: string; event: string; knocked?: number; frame?: number; opp_name?: string; rival_name?: string; cpu_wins?: number; player_wins?: number; last_result?: string }) => localQuip(payload.event),
   aiCoach: async (payload: { score: number; strikes: number; spares?: number; mode?: string; result?: string | null }) => ({
     text: payload.strikes > 2 ? "Your pocket control was working. Keep that same line." :

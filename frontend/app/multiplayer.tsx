@@ -33,35 +33,47 @@ export default function Multiplayer() {
   const started = useRef(false);
 
   useEffect(() => {
-    ensurePlayer().then((p) => (identity.current = p)).catch(() => {});
+    ensurePlayer().then((p) => (identity.current = p)).catch(() => {
+      setError("Sign in to HYPHSWORLD to play online.");
+    });
   }, []);
 
-  // poll room when hosting / joining
   useEffect(() => {
-    if (view === "menu" || !room) return;
-    const iv = setInterval(async () => {
+    if (view === "menu" || !room?.id || !room.code) return;
+
+    const handleRoom = (next: Room) => {
+      setRoom(next);
+      if (next.players.length >= 2 && !started.current) {
+        started.current = true;
+        router.replace(`/game?mode=multiplayer&code=${next.code}`);
+      }
+    };
+
+    const stopRealtime = api.watchRoom(room.code, room.id, handleRoom);
+    const fallback = setInterval(async () => {
       try {
-        const r = await api.getRoom(room.code);
-        setRoom(r);
-        if (r.players.length >= 2 && !started.current) {
-          started.current = true;
-          clearInterval(iv);
-          router.replace(`/game?mode=multiplayer&code=${r.code}`);
-        }
-      } catch (e) {}
-    }, 2000);
-    return () => clearInterval(iv);
-  }, [view, room?.code]);
+        handleRoom(await api.getRoom(room.code));
+      } catch (_) {}
+    }, 8000);
+
+    return () => {
+      clearInterval(fallback);
+      stopRealtime();
+    };
+  }, [view, room?.id, room?.code, router]);
 
   const handleCreate = async () => {
     setLoading(true);
     setError("");
+    started.current = false;
     try {
-      const r = await api.createRoom(identity.current.id, identity.current.name);
+      const p = await ensurePlayer();
+      identity.current = p;
+      const r = await api.createRoom(p.id, p.name);
       setRoom(r);
       setView("hosting");
     } catch (e: any) {
-      setError("Could not create room. Try again.");
+      setError(e?.message?.includes("Sign in") ? e.message : "Could not create room. Try again.");
     } finally {
       setLoading(false);
     }
@@ -74,8 +86,11 @@ export default function Multiplayer() {
     }
     setLoading(true);
     setError("");
+    started.current = false;
     try {
-      const r = await api.joinRoom(codeInput.trim(), identity.current.id, identity.current.name);
+      const p = await ensurePlayer();
+      identity.current = p;
+      const r = await api.joinRoom(codeInput.trim(), p.id, p.name);
       setRoom(r);
       setView("joining");
       if (r.players.length >= 2 && !started.current) {
@@ -83,7 +98,7 @@ export default function Multiplayer() {
         router.replace(`/game?mode=multiplayer&code=${r.code}`);
       }
     } catch (e: any) {
-      setError("Room not found or full.");
+      setError(e?.message?.includes("Sign in") ? e.message : "Room not found or full.");
     } finally {
       setLoading(false);
     }
@@ -112,8 +127,8 @@ export default function Multiplayer() {
             <View style={styles.hero}>
               <Ionicons name="people" size={54} color={colors.brandPrimary} />
               <Text style={styles.heroText}>
-                Challenge a friend to a 10-frame score battle. First, create a room and
-                share the code — or join one.
+                Challenge a friend to a live 10-frame score battle. Create a room and
+                share the code — or join one instantly.
               </Text>
             </View>
 
@@ -136,10 +151,12 @@ export default function Multiplayer() {
               <TextInput
                 testID="room-code-input"
                 value={codeInput}
-                onChangeText={(t) => setCodeInput(t.toUpperCase().slice(0, 4))}
+                onChangeText={(t) => setCodeInput(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4))}
                 placeholder="CODE"
                 placeholderTextColor={colors.onSurfaceSecondary}
                 autoCapitalize="characters"
+                autoCorrect={false}
+                autoComplete="off"
                 style={styles.codeInput}
                 maxLength={4}
               />
@@ -159,6 +176,10 @@ export default function Multiplayer() {
 
         {(view === "hosting" || view === "joining") && room && (
           <Animated.View entering={FadeInDown} style={styles.waitCard}>
+            <View style={styles.liveRow}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>LIVE ROOM</Text>
+            </View>
             <Text style={styles.waitLabel}>ROOM CODE</Text>
             <Text testID="room-code-display" style={styles.code}>
               {room.code}
@@ -248,6 +269,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     ...shadow.card,
   },
+  liveRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brandSecondary },
+  liveText: { fontFamily: font.display, fontSize: type.sm, color: colors.brandSecondary, letterSpacing: 1.5 },
   waitLabel: { fontFamily: font.display, fontSize: type.base, color: colors.onSurfaceSecondary, letterSpacing: 2 },
   code: {
     fontFamily: font.display,
