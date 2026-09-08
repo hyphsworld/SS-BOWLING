@@ -64,7 +64,6 @@ export default function Game() {
   const [quip, setQuip] = useState<{ text: string; voice: "commentator" | "cpu" } | null>(null);
   const [intermissionText, setIntermissionText] = useState<string | null>(null);
   const [playerId, setPlayerId] = useState("");
-  const [roomId, setRoomId] = useState("");
   const quipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intermissionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEvent = useRef<"strike" | "spare" | "gutter" | "open">("open");
@@ -124,18 +123,20 @@ export default function Game() {
     if (routed.current) return;
     routed.current = true;
     const my = scoreGame(meRef.current.frames).total;
+    const currentId = identity.current.id;
+    const opponent = room.players.find((p) => p.id !== currentId);
     let result = "tie";
     if (room.winner === "tie") result = "tie";
-    else if (room.winner === identity.current.id) result = "win";
+    else if (room.winner === currentId) result = "win";
     else if (room.winner) result = "lose";
-    const opponent = room.players.find((p) => p.id !== identity.current.id);
+
     router.replace({
       pathname: "/results",
       params: {
         mode: "multiplayer",
         myScore: String(my),
-        oppScore: String(opponent?.score ?? oppRemote?.score ?? 0),
-        oppName: opponent?.name ?? oppRemote?.name ?? "Opponent",
+        oppScore: String(opponent?.score ?? 0),
+        oppName: opponent?.name ?? "Opponent",
         result,
         strikes: String(countStrikes(meRef.current.frames)),
         spares: String(countSpares(meRef.current.frames)),
@@ -143,15 +144,14 @@ export default function Game() {
         balance: String(room.balance ?? 0),
       },
     });
-  }, [oppRemote?.name, oppRemote?.score, router]);
+  }, [router]);
 
   const handleRoom = useCallback((room: Room) => {
-    if (room.id && room.id !== roomId) setRoomId(room.id);
     const id = identity.current.id || playerId;
     const opp = room.players.find((p) => p.id !== id);
     if (opp) setOppRemote({ name: opp.name, score: opp.score, finished: opp.finished });
     if (room.status === "finished" && meRef.current.done) finishMultiplayer(room);
-  }, [finishMultiplayer, playerId, roomId]);
+  }, [finishMultiplayer, playerId]);
 
   const postProgress = useCallback(async (finished: boolean) => {
     if (mode !== "multiplayer" || !code) return;
