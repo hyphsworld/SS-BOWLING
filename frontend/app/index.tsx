@@ -34,7 +34,7 @@ export default function Home() {
     <View style={styles.container}>
       <View style={styles.heroWrap}>
         <ImageBackground
-          source={require("@/assets/images/super-strike-cover.png")}
+          source={require("@/assets/images/alley-gator-2d.png")}
           resizeMode="cover"
           imageStyle={styles.coverImage}
           style={StyleSheet.absoluteFill}
