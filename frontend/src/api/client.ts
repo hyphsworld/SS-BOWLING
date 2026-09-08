@@ -8,6 +8,8 @@ export const supabase = createClient(url, key, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function requireUser() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error("Sign in to HYPHSWORLD to use online Super Strike features.");
@@ -19,6 +21,32 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise
   const { data, error } = await supabase.rpc(name, args);
   if (error) throw new Error(error.message);
   return data as T;
+}
+
+async function updateRoomProgressWithRetry(
+  code: string,
+  payload: { score: number; current_frame: number; finished: boolean },
+): Promise<Room> {
+  const normalizedFrame = payload.finished && payload.current_frame === 9
+    ? 10
+    : payload.current_frame;
+
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      return await rpc<Room>("update_super_strike_room", {
+        p_room_code: code,
+        p_score: payload.score,
+        p_current_frame: normalizedFrame,
+        p_finished: payload.finished,
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await wait(350 * (attempt + 1));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Could not sync Super Strike match progress.");
 }
 
 export interface RoomPlayer {
@@ -152,11 +180,10 @@ export const api = {
   getRoom: async (code: string): Promise<Room> => rpc("get_super_strike_room", { p_room_code: code }),
   watchRoom,
   updateProgress: async (code: string, payload: { player_id?: string; name?: string; score: number; current_frame: number; finished: boolean }): Promise<Room> =>
-    rpc("update_super_strike_room", {
-      p_room_code: code,
-      p_score: payload.score,
-      p_current_frame: payload.current_frame,
-      p_finished: payload.finished,
+    updateRoomProgressWithRetry(code, {
+      score: payload.score,
+      current_frame: payload.current_frame,
+      finished: payload.finished,
     }),
 
   aiQuip: async (payload: { voice?: string; event: string; knocked?: number; frame?: number; opp_name?: string; rival_name?: string; cpu_wins?: number; player_wins?: number; last_result?: string }) => localQuip(payload.event),
