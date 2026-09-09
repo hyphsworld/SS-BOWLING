@@ -13,7 +13,7 @@ import TimingMeters from "@/src/components/TimingMeters";
 import Glass from "@/src/components/Glass";
 import Celebration from "@/src/components/Celebration";
 import SoundToggle from "@/src/components/SoundToggle";
-import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
+import { colors, font, radius, spacing } from "@/src/theme/theme";
 import { POWERUPS, PowerUpId } from "@/src/game/powerups";
 import {
   newGame,
@@ -32,6 +32,8 @@ import { getSelectedSkin } from "@/src/game/skins";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const FRAME_BREAK_MS = 2600;
+const HUD_WHITE = "#FFFFFF";
+const HUD_YELLOW = "#FFD60A";
 
 type Phase = "aim" | "power" | "rolling" | "intermission" | "cpu" | "over";
 type Owner = "me" | "opp";
@@ -311,13 +313,13 @@ export default function Game() {
       <BowlingLane standing={activeGame.standing} throwState={throwState} knockdown={knockdown} ballSkin={ballSkin} onArrive={onArrive} onHazardBlocked={onHazardBlocked} />
       <View style={[styles.topHud, { top: insets.top + spacing.xs }]}>
         <View style={styles.topRow}>
-          <Pressable testID="quit-game-button" onPress={() => router.replace("/")} style={styles.iconBtn}><Ionicons name="close" size={24} color={colors.text} /></Pressable>
+          <Pressable testID="quit-game-button" onPress={() => router.replace("/")} style={styles.iconBtn}><Ionicons name="close" size={24} color={HUD_WHITE} /></Pressable>
           <View style={styles.scorePill}><Text style={styles.scoreLabel}>SCORE</Text><Text style={styles.scoreValue}>{myTotal}</Text></View>
           {showOpp && <View style={styles.oppPill}><Text style={styles.oppName}>{mode === "cpu" ? rivalName : oppRemote?.name ?? "OPP"}</Text><Text style={styles.oppScore}>{oppTotal}</Text></View>}
           <View style={styles.framePill}><Text style={styles.frameLabel}>FRAME</Text><Text style={styles.frameValue}>{displayFrame}/10</Text></View>
           <SoundToggle />
         </View>
-        <Scorecard frames={meRef.current.frames} activeFrame={meRef.current.currentFrame} compact />
+        <Scorecard frames={meRef.current.frames} currentFrame={meRef.current.currentFrame} active dark />
       </View>
       {quip && <View style={[styles.quip, { top: insets.top + 122 }]}><Text style={styles.quipLabel}>{quip.voice === "cpu" ? rivalName.toUpperCase() : "COMMENTATOR"}</Text><Text style={styles.quipText}>{quip.text}</Text></View>}
       {phase === "intermission" && intermissionText && <View style={styles.intermission}><Text style={styles.intermissionText}>{intermissionText}</Text></View>}
@@ -332,16 +334,27 @@ export default function Game() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: "#05070D" },
   topHud: { position: "absolute", left: spacing.sm, right: spacing.sm, gap: spacing.xs },
   topRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  iconBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.82)", borderWidth: 1, borderColor: colors.glassBorder, alignItems: "center", justifyContent: "center" },
-  scorePill: { flexDirection: "row", alignItems: "baseline", gap: 6, paddingHorizontal: 12, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.86)", borderWidth: 1, borderColor: colors.cyan, justifyContent: "center" },
-  scoreLabel: { color: colors.muted, fontSize: 9, fontFamily: font.bold, letterSpacing: 1 }, scoreValue: { color: colors.cyan, fontSize: 22, fontFamily: font.heavy },
-  framePill: { paddingHorizontal: 10, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.86)", borderWidth: 1, borderColor: colors.glassBorder, alignItems: "center", justifyContent: "center" }, frameLabel: { color: colors.muted, fontSize: 8, fontFamily: font.bold }, frameValue: { color: colors.text, fontSize: 14, fontFamily: font.heavy },
-  oppPill: { paddingHorizontal: 9, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.86)", borderWidth: 1, borderColor: colors.magenta, alignItems: "center", justifyContent: "center" }, oppName: { color: colors.magenta, fontSize: 8, fontFamily: font.bold, maxWidth: 60 }, oppScore: { color: colors.text, fontSize: 14, fontFamily: font.heavy },
-  quip: { position: "absolute", alignSelf: "center", maxWidth: "82%", backgroundColor: "rgba(7,10,24,0.9)", borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 9 }, quipLabel: { color: colors.cyan, fontSize: 8, fontFamily: font.bold, letterSpacing: 1 }, quipText: { color: colors.text, fontSize: 12, fontFamily: font.bold, marginTop: 2 },
-  intermission: { position: "absolute", top: "42%", alignSelf: "center", backgroundColor: "rgba(7,10,24,0.94)", borderWidth: 1, borderColor: colors.cyan, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 14 }, intermissionText: { color: colors.cyan, fontSize: 16, fontFamily: font.heavy, letterSpacing: 1 },
-  bottom: { position: "absolute", left: spacing.sm, right: spacing.sm, bottom: 0, gap: spacing.sm }, waitBox: { padding: spacing.md, alignItems: "center" }, waitText: { color: colors.muted, fontFamily: font.bold, fontSize: 12, letterSpacing: 1 },
-  banner: { position: "absolute", top: "30%", left: 0, right: 0, alignItems: "center" }, bannerText: { color: colors.gold, fontFamily: font.heavy, fontSize: 48, letterSpacing: 2, textShadowColor: colors.magenta, textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } },
+  iconBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.9)", borderWidth: 1, borderColor: "rgba(255,255,255,0.26)", alignItems: "center", justifyContent: "center" },
+  scorePill: { flexDirection: "row", alignItems: "baseline", gap: 6, paddingHorizontal: 12, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.92)", borderWidth: 1, borderColor: HUD_YELLOW, justifyContent: "center" },
+  scoreLabel: { color: HUD_WHITE, fontSize: 9, fontFamily: font.display, letterSpacing: 1, fontWeight: "700" },
+  scoreValue: { color: HUD_YELLOW, fontSize: 22, fontFamily: font.display, fontWeight: "700" },
+  framePill: { paddingHorizontal: 10, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.92)", borderWidth: 1, borderColor: "rgba(255,255,255,0.32)", alignItems: "center", justifyContent: "center" },
+  frameLabel: { color: HUD_WHITE, fontSize: 8, fontFamily: font.display, fontWeight: "700" },
+  frameValue: { color: HUD_YELLOW, fontSize: 14, fontFamily: font.display, fontWeight: "700" },
+  oppPill: { paddingHorizontal: 9, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.92)", borderWidth: 1, borderColor: HUD_YELLOW, alignItems: "center", justifyContent: "center" },
+  oppName: { color: HUD_WHITE, fontSize: 8, fontFamily: font.display, fontWeight: "700", maxWidth: 60 },
+  oppScore: { color: HUD_YELLOW, fontSize: 14, fontFamily: font.display, fontWeight: "700" },
+  quip: { position: "absolute", alignSelf: "center", maxWidth: "82%", backgroundColor: "rgba(7,10,24,0.94)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 9 },
+  quipLabel: { color: HUD_YELLOW, fontSize: 8, fontFamily: font.display, fontWeight: "700", letterSpacing: 1 },
+  quipText: { color: HUD_WHITE, fontSize: 12, fontFamily: font.display, fontWeight: "700", marginTop: 2 },
+  intermission: { position: "absolute", top: "42%", alignSelf: "center", backgroundColor: "rgba(7,10,24,0.96)", borderWidth: 1, borderColor: HUD_YELLOW, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 14 },
+  intermissionText: { color: HUD_YELLOW, fontSize: 16, fontFamily: font.display, fontWeight: "700", letterSpacing: 1 },
+  bottom: { position: "absolute", left: spacing.sm, right: spacing.sm, bottom: 0, gap: spacing.sm },
+  waitBox: { padding: spacing.md, alignItems: "center" },
+  waitText: { color: HUD_WHITE, fontFamily: font.display, fontWeight: "700", fontSize: 12, letterSpacing: 1 },
+  banner: { position: "absolute", top: "30%", left: 0, right: 0, alignItems: "center" },
+  bannerText: { color: HUD_YELLOW, fontFamily: font.display, fontWeight: "700", fontSize: 48, letterSpacing: 2, textShadowColor: "#FF2D55", textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } },
 });
