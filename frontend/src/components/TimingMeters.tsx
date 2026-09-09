@@ -7,7 +7,6 @@ import Animated, {
   withTiming,
   cancelAnimation,
   Easing,
-  runOnJS,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { colors, font, radius, spacing, type } from "@/src/theme/theme";
@@ -23,6 +22,8 @@ interface Props {
 }
 
 const POCKET_VALUE = (POCKET_X / AIM_SCALE + 1) / 2; // ~0.59
+const HUD_WHITE = "#FFFFFF";
+const HUD_YELLOW = "#FFD60A";
 
 export default function TimingMeters({ phase, onLockAim, onLockPower }: Props) {
   const sweep = useSharedValue(0);
@@ -97,7 +98,7 @@ export default function TimingMeters({ phase, onLockAim, onLockPower }: Props) {
           pressed && { transform: [{ scale: 0.97 }] },
         ]}
       >
-        <Text style={[styles.btnText, { color: isAim ? colors.onSurface : colors.onSurfaceInverse }]}>
+        <Text style={[styles.btnText, { color: isAim ? HUD_YELLOW : HUD_WHITE }]}>
           {isAim ? "LOCK AIM" : "THROW!"}
         </Text>
       </Pressable>
@@ -110,15 +111,18 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: font.display,
     fontSize: type.base,
-    color: "#EAF7FF",
+    color: HUD_WHITE,
     textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.85)",
+    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 },
   },
   track: {
     height: 26,
     borderRadius: radius.pill,
-    backgroundColor: "rgba(2,8,24,0.85)",
+    backgroundColor: "rgba(2,8,24,0.9)",
     borderWidth: 2,
-    borderColor: "rgba(34,225,255,0.5)",
+    borderColor: "rgba(34,225,255,0.7)",
     justifyContent: "center",
     overflow: "hidden",
   },
@@ -136,7 +140,7 @@ const styles = StyleSheet.create({
     bottom: 2,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#EAF7FF",
+    borderColor: HUD_WHITE,
   },
   btn: {
     height: 56,
@@ -144,7 +148,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.5)",
+    borderColor: "rgba(255,255,255,0.72)",
   },
-  btnText: { fontFamily: font.display, fontSize: type.xl },
+  btnText: {
+    fontFamily: font.display,
+    fontSize: type.xl,
+    fontWeight: "700",
+    textShadowColor: "rgba(0,0,0,0.65)",
+    textShadowRadius: 3,
+    textShadowOffset: { width: 0, height: 1 },
+  },
 });
