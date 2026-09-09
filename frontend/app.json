@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Super Strike Bowling",
+    "slug": "super-strike-bowling",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/ams-west-logo.png",
-    "scheme": "frontend",
+    "scheme": "superstrike",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.strikepowerup.pqm68t"
+      "bundleIdentifier": "com.amswest.superstrike",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +19,8 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.emergent.strikepowerup.pqm68t"
+      "package": "com.amswest.superstrike",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
