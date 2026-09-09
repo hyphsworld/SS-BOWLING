@@ -52,6 +52,8 @@ export default function Results() {
   const [coachTip, setCoachTip] = useState<string | null>(null);
   const [rewardPoints, setRewardPoints] = useState(initialReward);
   const [balance, setBalance] = useState(initialBalance);
+  const [saveState, setSaveState] = useState<"saving" | "saved" | "error">("saving");
+  const [saveMessage, setSaveMessage] = useState("Saving score to HYPHSWORLD…");
 
   useEffect(() => {
     const win = result === "win" || (mode === "solo" && myScore >= 150);
@@ -77,8 +79,15 @@ export default function Results() {
         if (!cancelled) {
           if (mode !== "multiplayer") setRewardPoints(Number(submitted?.points_delta || 0));
           if (Number.isFinite(Number(submitted?.balance))) setBalance(Number(submitted.balance));
+          setSaveState("saved");
+          setSaveMessage(`${myScore} saved • View Leaderboard`);
         }
-      } catch (_) {}
+      } catch (error) {
+        if (!cancelled) {
+          setSaveState("error");
+          setSaveMessage(error instanceof Error ? error.message : "Score did not save. Tap to retry.");
+        }
+      }
 
       if (mode === "cpu" && (result === "win" || result === "lose" || result === "tie")) {
         recordRivalResult(result).catch(() => {});
@@ -109,6 +118,31 @@ export default function Results() {
       stopSpeaking();
     };
   }, []);
+
+  const retrySave = async () => {
+    if (saveState === "saving") return;
+    setSaveState("saving");
+    setSaveMessage("Saving score to HYPHSWORLD…");
+    try {
+      const p = await ensurePlayer();
+      const submitted = await api.submitScore({
+        player_id: p.id,
+        name: p.name,
+        score: myScore,
+        mode,
+        strikes,
+        spares,
+        result: result || null,
+      });
+      if (mode !== "multiplayer") setRewardPoints(Number(submitted?.points_delta || 0));
+      if (Number.isFinite(Number(submitted?.balance))) setBalance(Number(submitted.balance));
+      setSaveState("saved");
+      setSaveMessage(`${myScore} saved • View Leaderboard`);
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(error instanceof Error ? error.message : "Score did not save. Tap to retry.");
+    }
+  };
 
   const isVs = mode === "cpu" || mode === "multiplayer";
   const won = result === "win";
@@ -168,6 +202,31 @@ export default function Results() {
             </View>
           </View>
 
+          <Pressable
+            testID="score-save-status"
+            onPress={() => saveState === "saved" ? router.push("/leaderboard") : retrySave()}
+            style={[
+              styles.saveCard,
+              saveState === "saved" && styles.saveCardSaved,
+              saveState === "error" && styles.saveCardError,
+            ]}
+          >
+            {saveState === "saving" ? (
+              <ActivityIndicator size="small" color={colors.brandSecondary} />
+            ) : (
+              <Ionicons
+                name={saveState === "saved" ? "trophy" : "refresh-circle"}
+                size={20}
+                color={saveState === "saved" ? colors.brandSecondary : colors.brandPrimary}
+              />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.saveTitle}>{saveState === "saved" ? "SCORE SAVED" : saveState === "error" ? "SAVE SCORE" : "SAVING SCORE"}</Text>
+              <Text style={styles.saveSub}>{saveMessage}</Text>
+            </View>
+            {saveState === "saved" && <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceSecondary} />}
+          </Pressable>
+
           <View style={styles.pointsCard} testID="cool-points-reward">
             <Ionicons name="sparkles" size={20} color={colors.brandSecondary} />
             <View style={{ flex: 1 }}>
@@ -200,6 +259,13 @@ export default function Results() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
         <PrimaryButton
+          testID="view-leaderboard-button"
+          label="View Leaderboard"
+          icon="trophy"
+          variant="outline"
+          onPress={() => router.push("/leaderboard")}
+        />
+        <PrimaryButton
           testID="play-again-button"
           label="Play Again"
           icon="refresh"
@@ -231,6 +297,11 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: "row", gap: spacing.md, justifyContent: "center" },
   statChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   statText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  saveCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1.5, borderColor: colors.border },
+  saveCardSaved: { borderColor: colors.brandSecondary },
+  saveCardError: { borderColor: colors.brandPrimary },
+  saveTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.onSurface },
+  saveSub: { fontFamily: font.text, fontSize: type.sm, color: colors.onSurfaceSecondary, marginTop: 2 },
   pointsCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1.5, borderColor: colors.brandSecondary },
   pointsTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.brandSecondary },
   pointsSub: { fontFamily: font.text, fontSize: type.sm, color: colors.onSurfaceSecondary, marginTop: 2 },

@@ -163,11 +163,11 @@ export const api = {
 
   leaderboard: async (limit = 20): Promise<Array<{ id: string; name: string; score: number; mode: string; strikes: number }>> => {
     const { data, error } = await supabase.from("game_scores")
-      .select("user_id, score, metadata, profiles!game_scores_user_id_fkey(display_name)")
+      .select("id, user_id, score, metadata, profiles!game_scores_user_id_fkey(display_name)")
       .eq("game_key", "super_strike").order("score", { ascending: false }).limit(limit);
     if (error) throw new Error(error.message);
     return (data || []).map((row: any) => ({
-      id: row.user_id,
+      id: String(row.id || `${row.user_id}-${row.score}`),
       name: row.profiles?.display_name || "HYPHSWORLD Bowler",
       score: row.score,
       mode: String(row.metadata?.mode || "solo"),
