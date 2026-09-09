@@ -34,6 +34,8 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const FRAME_BREAK_MS = 2600;
 const HUD_WHITE = "#FFFFFF";
 const HUD_YELLOW = "#FFD60A";
+const SCORECARD_DARK = "#1C1C22";
+const SCORECARD_BORDER = "#3A3A42";
 
 type Phase = "aim" | "power" | "rolling" | "intermission" | "cpu" | "over";
 type Owner = "me" | "opp";
@@ -337,24 +339,24 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#05070D" },
   topHud: { position: "absolute", left: spacing.sm, right: spacing.sm, gap: spacing.xs },
   topRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  iconBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.9)", borderWidth: 1, borderColor: "rgba(255,255,255,0.26)", alignItems: "center", justifyContent: "center" },
-  scorePill: { flexDirection: "row", alignItems: "baseline", gap: 6, paddingHorizontal: 12, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.92)", borderWidth: 1, borderColor: HUD_YELLOW, justifyContent: "center" },
-  scoreLabel: { color: HUD_WHITE, fontSize: 9, fontFamily: font.display, letterSpacing: 1, fontWeight: "700" },
-  scoreValue: { color: HUD_YELLOW, fontSize: 22, fontFamily: font.display, fontWeight: "700" },
-  framePill: { paddingHorizontal: 10, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.92)", borderWidth: 1, borderColor: "rgba(255,255,255,0.32)", alignItems: "center", justifyContent: "center" },
-  frameLabel: { color: HUD_WHITE, fontSize: 8, fontFamily: font.display, fontWeight: "700" },
-  frameValue: { color: HUD_YELLOW, fontSize: 14, fontFamily: font.display, fontWeight: "700" },
-  oppPill: { paddingHorizontal: 9, height: 42, borderRadius: 14, backgroundColor: "rgba(10,14,30,0.92)", borderWidth: 1, borderColor: HUD_YELLOW, alignItems: "center", justifyContent: "center" },
-  oppName: { color: HUD_WHITE, fontSize: 8, fontFamily: font.display, fontWeight: "700", maxWidth: 60 },
-  oppScore: { color: HUD_YELLOW, fontSize: 14, fontFamily: font.display, fontWeight: "700" },
-  quip: { position: "absolute", alignSelf: "center", maxWidth: "82%", backgroundColor: "rgba(7,10,24,0.94)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 9 },
-  quipLabel: { color: HUD_YELLOW, fontSize: 8, fontFamily: font.display, fontWeight: "700", letterSpacing: 1 },
-  quipText: { color: HUD_WHITE, fontSize: 12, fontFamily: font.display, fontWeight: "700", marginTop: 2 },
-  intermission: { position: "absolute", top: "42%", alignSelf: "center", backgroundColor: "rgba(7,10,24,0.96)", borderWidth: 1, borderColor: HUD_YELLOW, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 14 },
-  intermissionText: { color: HUD_YELLOW, fontSize: 16, fontFamily: font.display, fontWeight: "700", letterSpacing: 1 },
+  iconBtn: { width: 42, height: 42, borderRadius: 14, backgroundColor: SCORECARD_DARK, borderWidth: 1.5, borderColor: SCORECARD_BORDER, alignItems: "center", justifyContent: "center" },
+  scorePill: { flexDirection: "row", alignItems: "baseline", gap: 6, paddingHorizontal: 12, height: 42, borderRadius: 14, backgroundColor: SCORECARD_DARK, borderWidth: 1.5, borderColor: SCORECARD_BORDER, justifyContent: "center" },
+  scoreLabel: { color: HUD_WHITE, fontSize: 9, fontFamily: font.display, letterSpacing: 1, fontWeight: "800", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 2 },
+  scoreValue: { color: HUD_YELLOW, fontSize: 22, fontFamily: font.display, fontWeight: "800", textShadowColor: "rgba(0,0,0,0.9)", textShadowRadius: 3 },
+  framePill: { paddingHorizontal: 10, height: 42, borderRadius: 14, backgroundColor: SCORECARD_DARK, borderWidth: 1.5, borderColor: SCORECARD_BORDER, alignItems: "center", justifyContent: "center" },
+  frameLabel: { color: HUD_WHITE, fontSize: 8, fontFamily: font.display, fontWeight: "800", letterSpacing: .8, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 2 },
+  frameValue: { color: HUD_YELLOW, fontSize: 14, fontFamily: font.display, fontWeight: "800", textShadowColor: "rgba(0,0,0,0.9)", textShadowRadius: 3 },
+  oppPill: { paddingHorizontal: 9, height: 42, borderRadius: 14, backgroundColor: SCORECARD_DARK, borderWidth: 1.5, borderColor: SCORECARD_BORDER, alignItems: "center", justifyContent: "center" },
+  oppName: { color: HUD_WHITE, fontSize: 8, fontFamily: font.display, fontWeight: "800", maxWidth: 60, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 2 },
+  oppScore: { color: HUD_YELLOW, fontSize: 14, fontFamily: font.display, fontWeight: "800", textShadowColor: "rgba(0,0,0,0.9)", textShadowRadius: 3 },
+  quip: { position: "absolute", alignSelf: "center", maxWidth: "82%", backgroundColor: SCORECARD_DARK, borderWidth: 1.5, borderColor: SCORECARD_BORDER, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 9 },
+  quipLabel: { color: HUD_YELLOW, fontSize: 8, fontFamily: font.display, fontWeight: "800", letterSpacing: 1 },
+  quipText: { color: HUD_WHITE, fontSize: 12, fontFamily: font.display, fontWeight: "800", marginTop: 2 },
+  intermission: { position: "absolute", top: "42%", alignSelf: "center", backgroundColor: SCORECARD_DARK, borderWidth: 2, borderColor: HUD_YELLOW, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 14, shadowColor: HUD_YELLOW, shadowOpacity: .35, shadowRadius: 8 },
+  intermissionText: { color: HUD_WHITE, fontSize: 16, fontFamily: font.display, fontWeight: "800", letterSpacing: 1, textShadowColor: "rgba(0,0,0,0.95)", textShadowRadius: 3 },
   bottom: { position: "absolute", left: spacing.sm, right: spacing.sm, bottom: 0, gap: spacing.sm },
   waitBox: { padding: spacing.md, alignItems: "center" },
-  waitText: { color: HUD_WHITE, fontFamily: font.display, fontWeight: "700", fontSize: 12, letterSpacing: 1 },
+  waitText: { color: HUD_WHITE, fontFamily: font.display, fontWeight: "800", fontSize: 12, letterSpacing: 1 },
   banner: { position: "absolute", top: "30%", left: 0, right: 0, alignItems: "center" },
-  bannerText: { color: HUD_YELLOW, fontFamily: font.display, fontWeight: "700", fontSize: 48, letterSpacing: 2, textShadowColor: "#FF2D55", textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } },
+  bannerText: { color: HUD_YELLOW, fontFamily: font.display, fontWeight: "800", fontSize: 48, letterSpacing: 2, textShadowColor: "#FF2D55", textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } },
 });
