@@ -11,6 +11,11 @@ interface Props {
   testID?: string;
 }
 
+const HUD_WHITE = "#FFFFFF";
+const HUD_YELLOW = "#FFD60A";
+const SCORECARD_DARK = "#1C1C22";
+const SCORECARD_BORDER = "#3A3A42";
+
 export default function Scorecard({
   frames,
   currentFrame,
@@ -25,10 +30,10 @@ export default function Scorecard({
     scrollRef.current?.scrollTo({ x: Math.max(0, currentFrame - 3) * 42, animated: true });
   }, [currentFrame]);
 
-  const cellBg = dark ? "#1C1C22" : colors.surfaceSecondary;
-  const borderC = dark ? "#3A3A42" : colors.border;
-  const textC = dark ? "#FFFFFF" : colors.onSurface;
-  const numC = dark ? colors.brand : colors.brandPrimary;
+  const cellBg = dark ? SCORECARD_DARK : colors.surfaceSecondary;
+  const borderC = dark ? SCORECARD_BORDER : colors.border;
+  const textC = dark ? HUD_WHITE : colors.onSurface;
+  const numC = dark ? HUD_YELLOW : colors.brandPrimary;
 
   return (
     <ScrollView
@@ -43,13 +48,27 @@ export default function Scorecard({
         const rollCount = i === 9 ? 3 : 2;
         return (
           <View key={i} style={styles.frameCol}>
-            <Text style={[styles.frameNum, { color: numC }]}>{i + 1}</Text>
+            <Text
+              style={[
+                styles.frameNum,
+                { color: numC },
+                dark && styles.frameNumDark,
+              ]}
+            >
+              {i + 1}
+            </Text>
             <View
               style={[
                 styles.frame,
                 i === 9 && styles.frame10,
                 { backgroundColor: cellBg, borderColor: borderC },
-                isCurrent && { borderColor: colors.brand, borderWidth: 2 },
+                isCurrent && {
+                  borderColor: HUD_YELLOW,
+                  borderWidth: 2,
+                  shadowColor: HUD_YELLOW,
+                  shadowOpacity: 0.35,
+                  shadowRadius: 5,
+                },
               ]}
             >
               <View style={[styles.rollsRow, { borderBottomColor: borderC }]}>
@@ -84,7 +103,12 @@ export default function Scorecard({
 const styles = StyleSheet.create({
   row: { alignItems: "center", paddingHorizontal: spacing.xs, gap: 3 },
   frameCol: { alignItems: "center", flexShrink: 0 },
-  frameNum: { fontFamily: font.display, fontSize: 11, marginBottom: 1 },
+  frameNum: { fontFamily: font.display, fontSize: 11, marginBottom: 2, fontWeight: "800" },
+  frameNumDark: {
+    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowRadius: 3,
+    textShadowOffset: { width: 0, height: 1 },
+  },
   frame: {
     width: 38,
     borderRadius: radius.sm,
@@ -100,10 +124,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRightWidth: 1,
   },
-  rollText: { fontFamily: font.display, fontSize: 12 },
+  rollText: { fontFamily: font.display, fontSize: 12, fontWeight: "800" },
   frameScore: {
     fontFamily: font.display,
     fontSize: 14,
+    fontWeight: "800",
     textAlign: "center",
     height: 22,
     lineHeight: 22,
