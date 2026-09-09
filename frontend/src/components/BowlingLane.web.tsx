@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet } from "react-native";
+import { Asset } from "expo-asset";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -297,6 +298,22 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     const pitZ = PIN_FRONT_Z - ROW_GAP * 3 - 0.55;
     const pit = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2.2, 1.2, 1.0), new THREE.MeshStandardMaterial({ color: 0x050608, roughness: 0.9 })); pit.position.set(0, 0.2, pitZ); scene.add(pit);
     const backWall = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.6, metalness: 0.5 })); backWall.position.set(0, 1.0, pitZ - 0.5); scene.add(backWall);
+    const amsLogoTexture = new THREE.TextureLoader().load(
+      Asset.fromModule(require("@/assets/images/ams-west-logo.png")).uri,
+    );
+    amsLogoTexture.colorSpace = THREE.SRGBColorSpace;
+    const amsLogo = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.65, 1.43),
+      new THREE.MeshBasicMaterial({
+        map: amsLogoTexture,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    );
+    amsLogo.position.set(0, 1.33, pitZ - 0.47);
+    amsLogo.renderOrder = 2;
+    scene.add(amsLogo);
     const neonH = new THREE.Mesh(new THREE.BoxGeometry(4, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x22e1ff })); neonH.position.set(0, 1.7, pitZ - 0.48); scene.add(neonH);
     [-0.55, -0.2, 0.2, 0.55].forEach((ax) => { const tri = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 3), new THREE.MeshStandardMaterial({ color: 0x2a2118, emissive: 0x1a1206, roughness: 0.5 })); tri.rotation.x = -Math.PI / 2; tri.position.set(ax * LANE_HALF, 0.02, -2.6); scene.add(tri); });
 
