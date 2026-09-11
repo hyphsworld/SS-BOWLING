@@ -25,19 +25,14 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise
 
 async function updateRoomProgressWithRetry(
   code: string,
-  payload: { score: number; current_frame: number; finished: boolean },
+  payload: { frames: Array<{ rolls: number[] }>; finished: boolean },
 ): Promise<Room> {
-  const normalizedFrame = payload.finished && payload.current_frame === 9
-    ? 10
-    : payload.current_frame;
-
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
-      return await rpc<Room>("update_super_strike_room", {
+      return await rpc<Room>("sync_super_strike_room", {
         p_room_code: code,
-        p_score: payload.score,
-        p_current_frame: normalizedFrame,
+        p_frames: payload.frames,
         p_finished: payload.finished,
       });
     } catch (error) {
@@ -148,27 +143,25 @@ export const api = {
     };
   },
 
-  submitScore: async (payload: { player_id: string; name: string; score: number; mode: string; strikes: number; spares: number; result?: string | null }) =>
-    rpc<{ ok: boolean; score: number; points_delta: number; balance: number }>("submit_game_run", {
-      p_game_key: "super_strike",
-      p_score: payload.score,
-      p_points_delta: 0,
+  startRun: async (mode: "solo" | "cpu") =>
+    rpc<{ run_id: string }>("start_super_strike_run", { p_mode: mode }),
+
+  submitScore: async (payload: { run_id: string; frames: Array<{ rolls: number[] }>; mode: string; result?: string | null }) =>
+    rpc<{ ok: boolean; score: number; strikes: number; spares: number; points_delta: number; balance: number }>("submit_super_strike_run", {
+      p_run_id: payload.run_id,
+      p_frames: payload.frames,
       p_metadata: {
         mode: payload.mode,
-        strikes: payload.strikes,
-        spares: payload.spares,
         result: payload.result || null,
       },
     }),
 
   leaderboard: async (limit = 20): Promise<Array<{ id: string; name: string; score: number; mode: string; strikes: number }>> => {
-    const { data, error } = await supabase.from("game_scores")
-      .select("user_id, score, metadata, profiles!game_scores_user_id_fkey(display_name)")
-      .eq("game_key", "super_strike").order("score", { ascending: false }).limit(limit);
+    const { data, error } = await supabase.rpc("get_super_strike_leaderboard", { p_limit: limit });
     if (error) throw new Error(error.message);
     return (data || []).map((row: any) => ({
       id: row.user_id,
-      name: row.profiles?.display_name || "HYPHSWORLD Bowler",
+      name: row.display_name || "HYPHSWORLD Bowler",
       score: row.score,
       mode: String(row.metadata?.mode || "solo"),
       strikes: Number(row.metadata?.strikes || 0),
@@ -179,10 +172,9 @@ export const api = {
   joinRoom: async (code: string, _playerId: string, _name: string): Promise<Room> => rpc("join_super_strike_room", { p_room_code: code }),
   getRoom: async (code: string): Promise<Room> => rpc("get_super_strike_room", { p_room_code: code }),
   watchRoom,
-  updateProgress: async (code: string, payload: { player_id?: string; name?: string; score: number; current_frame: number; finished: boolean }): Promise<Room> =>
+  updateProgress: async (code: string, payload: { frames: Array<{ rolls: number[] }>; finished: boolean }): Promise<Room> =>
     updateRoomProgressWithRetry(code, {
-      score: payload.score,
-      current_frame: payload.current_frame,
+      frames: payload.frames,
       finished: payload.finished,
     }),
 
