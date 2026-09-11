@@ -79,6 +79,7 @@ export default function Game() {
 
   const identity = useRef<{ id: string; name: string }>({ id: "", name: "You" });
   const routed = useRef(false);
+  const runId = useRef("");
   const rivalRef = useRef<Rival | null>(null);
   const [rivalName, setRivalName] = useState("CPU");
   const [ballSkin, setBallSkin] = useState("classic");
@@ -92,6 +93,11 @@ export default function Game() {
     if (mode === "cpu") {
       getRival().then((r) => { rivalRef.current = r; setRivalName(r.name); });
     }
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode === "multiplayer") return;
+    api.startRun(mode).then((run) => { runId.current = run.run_id; }).catch(() => {});
   }, [mode]);
 
   const activeGame = active === "me" ? meRef.current : oppRef.current;
@@ -159,7 +165,6 @@ export default function Game() {
 
   const postProgress = useCallback(async (finished: boolean) => {
     if (mode !== "multiplayer" || !code) return;
-    const score = scoreGame(meRef.current.frames).total;
     try {
       if (!identity.current.id) {
         const p = await ensurePlayer();
@@ -167,10 +172,7 @@ export default function Game() {
         setPlayerId(p.id);
       }
       const room = await api.updateProgress(code, {
-        player_id: identity.current.id,
-        name: identity.current.name,
-        score,
-        current_frame: meRef.current.currentFrame,
+        frames: meRef.current.frames,
         finished,
       });
       handleRoom(room);
@@ -296,12 +298,12 @@ export default function Game() {
 
   const finishSolo = () => {
     if (routed.current) return; routed.current = true; const total = scoreGame(meRef.current.frames).total;
-    router.replace({ pathname: "/results", params: { mode: "solo", myScore: String(total), strikes: String(countStrikes(meRef.current.frames)), spares: String(countSpares(meRef.current.frames)) } });
+    router.replace({ pathname: "/results", params: { mode: "solo", myScore: String(total), frames: JSON.stringify(meRef.current.frames), runId: runId.current } });
   };
 
   const finishVsCpu = () => {
     if (routed.current) return; routed.current = true; const my = scoreGame(meRef.current.frames).total; const opp = scoreGame(oppRef.current.frames).total; const result = my > opp ? "win" : my < opp ? "lose" : "tie";
-    router.replace({ pathname: "/results", params: { mode: "cpu", myScore: String(my), oppScore: String(opp), oppName: rivalName, result, strikes: String(countStrikes(meRef.current.frames)), spares: String(countSpares(meRef.current.frames)) } });
+    router.replace({ pathname: "/results", params: { mode: "cpu", myScore: String(my), oppScore: String(opp), oppName: rivalName, result, frames: JSON.stringify(meRef.current.frames), runId: runId.current } });
   };
 
   const myTotal = scoreGame(meRef.current.frames).total;

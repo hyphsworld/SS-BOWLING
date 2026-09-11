@@ -13,6 +13,7 @@ import { ensurePlayer } from "@/src/store/player";
 import { playSound } from "@/src/audio/sounds";
 import { speak, stopSpeaking } from "@/src/audio/speech";
 import { recordRivalResult } from "@/src/store/rival";
+import { countSpares, countStrikes, Frame, scoreGame } from "@/src/game/engine";
 
 const TROPHY =
   "https://images.unsplash.com/photo-1578269174936-2709b6aeb913?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHx0cm9waHklMjBjYXJ0b29uJTIwd2lubmVyfGVufDB8fHx8MTc4NzM5MTYxMnww&ixlib=rb-4.1.0&q=85";
@@ -35,17 +36,25 @@ export default function Results() {
     spares?: string;
     rewardPoints?: string;
     balance?: string;
+    frames?: string;
+    runId?: string;
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const mode = params.mode || "solo";
-  const myScore = Number(params.myScore || 0);
+  let verifiedFrames: Frame[] = [];
+  try {
+    const parsed = JSON.parse(params.frames || "[]");
+    if (Array.isArray(parsed)) verifiedFrames = parsed;
+  } catch (_) {}
+  const localScore = verifiedFrames.length === 10 ? scoreGame(verifiedFrames).total : Number(params.myScore || 0);
+  const [myScore, setMyScore] = useState(localScore);
   const oppScore = Number(params.oppScore || 0);
   const oppName = params.oppName || "Opponent";
   const result = params.result || "";
-  const strikes = Number(params.strikes || 0);
-  const spares = Number(params.spares || 0);
+  const [strikes, setStrikes] = useState(verifiedFrames.length === 10 ? countStrikes(verifiedFrames) : Number(params.strikes || 0));
+  const [spares, setSpares] = useState(verifiedFrames.length === 10 ? countSpares(verifiedFrames) : Number(params.spares || 0));
   const initialReward = Number(params.rewardPoints || 0);
   const initialBalance = Number(params.balance || 0);
 
@@ -64,19 +73,21 @@ export default function Results() {
 
     (async () => {
       try {
-        const p = await ensurePlayer();
-        const submitted = await api.submitScore({
-          player_id: p.id,
-          name: p.name,
-          score: myScore,
+        await ensurePlayer();
+        const submitted = mode === "multiplayer" ? null : await api.submitScore({
+          run_id: params.runId || "",
+          frames: verifiedFrames,
           mode,
-          strikes,
-          spares,
           result: result || null,
         });
         if (!cancelled) {
-          if (mode !== "multiplayer") setRewardPoints(Number(submitted?.points_delta || 0));
-          if (Number.isFinite(Number(submitted?.balance))) setBalance(Number(submitted.balance));
+          if (submitted) {
+            setMyScore(Number(submitted.score));
+            setStrikes(Number(submitted.strikes));
+            setSpares(Number(submitted.spares));
+            setRewardPoints(Number(submitted.points_delta || 0));
+          }
+          if (Number.isFinite(Number(submitted?.balance))) setBalance(Number(submitted?.balance));
         }
       } catch (_) {}
 
