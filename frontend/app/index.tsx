@@ -11,17 +11,34 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInDown, FadeOut } from "react-native-reanimated";
 
 import PrimaryButton from "@/src/components/PrimaryButton";
 import SoundToggle from "@/src/components/SoundToggle";
 import { colors, font, radius, spacing, type, shadow } from "@/src/theme/theme";
 import { ensurePlayer, getName } from "@/src/store/player";
 
+let introPlayedThisSession = false;
+
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("Bowler");
+  const [showIntro, setShowIntro] = useState(() => !introPlayedThisSession);
+  const [introPhase, setIntroPhase] = useState(0);
+
+  useEffect(() => {
+    if (!showIntro) return;
+    introPlayedThisSession = true;
+    const phaseTwo = setTimeout(() => setIntroPhase(1), 1800);
+    const phaseThree = setTimeout(() => setIntroPhase(2), 4600);
+    const finish = setTimeout(() => setShowIntro(false), 8000);
+    return () => {
+      clearTimeout(phaseTwo);
+      clearTimeout(phaseThree);
+      clearTimeout(finish);
+    };
+  }, [showIntro]);
 
   useEffect(() => {
     ensurePlayer()
@@ -86,6 +103,63 @@ export default function Home() {
         </Animated.View>
       </View>
 
+      {showIntro && (
+        <Animated.View
+          testID="super-strike-intro"
+          entering={FadeIn.duration(350)}
+          exiting={FadeOut.duration(650)}
+          style={styles.intro}
+        >
+          <ImageBackground
+            source={require("@/assets/images/super-strike-cover.png")}
+            resizeMode="cover"
+            imageStyle={styles.introArtwork}
+            style={StyleSheet.absoluteFill}
+          >
+            <LinearGradient
+              colors={["rgba(0,0,0,0.08)", "rgba(0,0,0,0.28)", "rgba(0,0,0,0.92)"]}
+              locations={[0, 0.56, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </ImageBackground>
+
+          <Pressable
+            testID="skip-intro-button"
+            accessibilityRole="button"
+            accessibilityLabel="Skip Super Strike intro"
+            onPress={() => setShowIntro(false)}
+            style={[styles.skipIntro, { top: insets.top + spacing.md }]}
+          >
+            <Text style={styles.skipIntroText}>SKIP</Text>
+          </Pressable>
+
+          <View style={[styles.introCopy, { paddingBottom: insets.bottom + spacing["2xl"] }]}>
+            <Animated.View key={introPhase} entering={FadeInDown.duration(600)} style={styles.introTitleWrap}>
+              {introPhase === 0 ? (
+                <>
+                  <Text style={styles.introEyebrow}>AMS WEST PRESENTS</Text>
+                  <Text style={styles.introLead}>WELCOME TO THE LANES</Text>
+                </>
+              ) : introPhase === 1 ? (
+                <>
+                  <Text style={styles.introEyebrow}>HYPHSWORLD</Text>
+                  <Text style={styles.introLogo}>SUPER STRIKE</Text>
+                  <Text style={styles.introSub}>BOWL THE BAY</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.introEyebrow}>PICK YOUR BALL</Text>
+                  <Text style={styles.introLead}>CHASE THE STRIKE</Text>
+                  <Text style={styles.introSub}>THE LANES ARE OPEN</Text>
+                </>
+              )}
+            </Animated.View>
+            <View style={styles.introProgress}>
+              <Animated.View entering={FadeIn.duration(500)} style={styles.introProgressFill} />
+            </View>
+          </View>
+        </Animated.View>
+      )}
       <View style={[styles.menu, { paddingBottom: insets.bottom + spacing.lg }]}>
         <Animated.View entering={FadeInDown.delay(320)}>
           <PrimaryButton
@@ -132,6 +206,88 @@ const heroHeight = Math.min(650, Math.max(470, height * 0.67));
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  intro: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    backgroundColor: "#05050A",
+    overflow: "hidden",
+  },
+  introArtwork: { opacity: 1 },
+  skipIntro: {
+    position: "absolute",
+    right: spacing.lg,
+    zIndex: 2,
+    minWidth: 66,
+    height: 36,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.75)",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  skipIntroText: {
+    fontFamily: font.display,
+    color: "#FFFFFF",
+    fontSize: type.sm,
+    letterSpacing: 1.5,
+  },
+  introCopy: {
+    position: "absolute",
+    left: spacing.xl,
+    right: spacing.xl,
+    bottom: 0,
+    alignItems: "center",
+  },
+  introTitleWrap: { minHeight: 132, alignItems: "center", justifyContent: "flex-end" },
+  introEyebrow: {
+    fontFamily: font.display,
+    color: "#B8E52A",
+    fontSize: type.base,
+    letterSpacing: 3,
+    textAlign: "center",
+  },
+  introLogo: {
+    fontFamily: font.display,
+    color: "#FFFFFF",
+    fontSize: type["4xl"],
+    lineHeight: type["4xl"] + 4,
+    letterSpacing: 1.5,
+    textAlign: "center",
+    textShadowColor: "#E91E73",
+    textShadowRadius: 14,
+  },
+  introLead: {
+    fontFamily: font.display,
+    color: "#FFFFFF",
+    fontSize: type["2xl"],
+    letterSpacing: 1,
+    textAlign: "center",
+    marginTop: spacing.xs,
+    textShadowColor: "rgba(8,125,220,0.9)",
+    textShadowRadius: 12,
+  },
+  introSub: {
+    fontFamily: font.display,
+    color: "#23F0FF",
+    fontSize: type.lg,
+    letterSpacing: 4,
+    textAlign: "center",
+    marginTop: spacing.xs,
+  },
+  introProgress: {
+    width: "70%",
+    height: 4,
+    marginTop: spacing.lg,
+    overflow: "hidden",
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  introProgressFill: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#E91E73",
+  },
   heroWrap: { height: heroHeight, overflow: "hidden" },
   coverImage: { opacity: 1 },
   brandMark: {
