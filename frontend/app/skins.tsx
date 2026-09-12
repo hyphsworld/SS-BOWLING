@@ -17,22 +17,51 @@ export default function Skins() {
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState("classic");
   const [stats, setStats] = useState<UnlockStats>({ games: 0, best: 0, total_strikes: 0 });
+  const [ownedSkins, setOwnedSkins] = useState<string[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [buying, setBuying] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     getSelectedSkin().then(setSelected);
     (async () => {
       try {
         const p = await ensurePlayer();
-        const s = await api.getStats(p.id);
+        const [s, owned, wallet] = await Promise.all([
+          api.getStats(p.id),
+          api.getSkinUnlocks(),
+          api.getWalletBalance(),
+        ]);
         setStats({ games: s.games || 0, best: s.best || 0, total_strikes: s.total_strikes || 0 });
+        setOwnedSkins(owned);
+        setBalance(wallet);
       } catch (e) {}
     })();
   }, []);
 
-  const choose = async (id: string, unlocked: boolean) => {
+  const choose = async (skin: (typeof SKINS)[number], unlocked: boolean) => {
+    if (!unlocked && skin.unlock.points) {
+      if (buying) return;
+      setBuying(skin.id);
+      setNotice("");
+      try {
+        const result = await api.purchaseSkin(skin.id);
+        setOwnedSkins((current) => current.includes(skin.id) ? current : [...current, skin.id]);
+        setBalance(result.balance);
+        setSelected(skin.id);
+        await setSelectedSkin(skin.id);
+        setNotice(skin.name + " unlocked permanently.");
+        playSound("success");
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Purchase could not be completed.");
+      } finally {
+        setBuying(null);
+      }
+      return;
+    }
     if (!unlocked) return;
-    setSelected(id);
-    await setSelectedSkin(id);
+    setSelected(skin.id);
+    await setSelectedSkin(skin.id);
     playSound("tap");
   };
 
@@ -46,15 +75,20 @@ export default function Skins() {
         <View style={styles.iconBtn} />
       </View>
 
+      <View style={styles.walletRow}>
+        <Ionicons name="diamond" size={16} color={colors.brandPrimary} />
+        <Text style={styles.walletText}>{balance.toLocaleString()} Cool Points</Text>
+      </View>
+      {!!notice && <Text style={styles.notice}>{notice}</Text>}
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {SKINS.map((skin, i) => {
-          const unlocked = isSkinUnlocked(skin, stats);
+          const unlocked = isSkinUnlocked(skin, stats, ownedSkins);
           const active = selected === skin.id;
           return (
             <Animated.View key={skin.id} entering={FadeInDown.delay(i * 70)}>
               <Pressable
                 testID={`skin-${skin.id}`}
-                onPress={() => choose(skin.id, unlocked)}
+                onPress={() => choose(skin, unlocked)}
                 style={[styles.card, active && styles.cardActive, !unlocked && styles.cardLocked]}
               >
                 <LinearGradient
@@ -84,7 +118,7 @@ export default function Skins() {
                   {!unlocked ? (
                     <View style={styles.pill}>
                       <Ionicons name="lock-closed" size={11} color={colors.brandPrimary} />
-                      <Text style={styles.pillText}>{skin.unlockText}</Text>
+                      <Text style={styles.pillText}>{buying === skin.id ? "Unlocking…" : skin.unlockText}</Text>
                     </View>
                   ) : active ? (
                     <View style={[styles.pill, styles.pillActive]}>
@@ -117,6 +151,9 @@ const styles = StyleSheet.create({
   },
   iconBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: font.display, fontSize: type["2xl"], color: colors.onSurface },
+  walletRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 6 },
+  walletText: { fontFamily: font.display, color: colors.brandPrimary, fontSize: type.md },
+  notice: { fontFamily: font.text, color: colors.brandSecondary, textAlign: "center", paddingHorizontal: spacing.lg, paddingBottom: 4 },
   list: { padding: spacing.lg, gap: spacing.md },
   card: {
     flexDirection: "row",
