@@ -27,12 +27,12 @@ export default function Skins() {
     (async () => {
       try {
         const p = await ensurePlayer();
-        const [s, owned, wallet] = await Promise.all([
-          api.getStats(p.id),
-          api.getSkinUnlocks(),
-          api.getWalletBalance(),
-        ]);
+        const s = await api.getStats(p.id);
         setStats({ games: s.games || 0, best: s.best || 0, total_strikes: s.total_strikes || 0 });
+        const [owned, wallet] = await Promise.all([
+          api.getSkinUnlocks().catch(() => [] as string[]),
+          api.getWalletBalance().catch(() => 0),
+        ]);
         setOwnedSkins(owned);
         setBalance(wallet);
       } catch (e) {}
@@ -51,7 +51,7 @@ export default function Skins() {
         setSelected(skin.id);
         await setSelectedSkin(skin.id);
         setNotice(skin.name + " unlocked permanently.");
-        playSound("success");
+        playSound("powerup");
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "Purchase could not be completed.");
       } finally {
