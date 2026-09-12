@@ -156,6 +156,28 @@ export const api = {
       },
     }),
 
+  getSkinUnlocks: async (): Promise<string[]> => {
+    const user = await requireUser();
+    const { data, error } = await supabase.from("super_strike_skin_unlocks")
+      .select("skin_id").eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+    return (data || []).map((row: { skin_id: string }) => row.skin_id);
+  },
+
+  getWalletBalance: async (): Promise<number> => {
+    const user = await requireUser();
+    const { data, error } = await supabase.from("profiles")
+      .select("cool_points, points").eq("id", user.id).single();
+    if (error) throw new Error(error.message);
+    return Number(data.cool_points ?? data.points ?? 0);
+  },
+
+  purchaseSkin: async (skinId: string) =>
+    rpc<{ ok: boolean; skin_id: string; points_spent: number; balance: number; already_owned: boolean }>(
+      "purchase_super_strike_skin",
+      { p_skin_id: skinId },
+    ),
+
   leaderboard: async (limit = 20): Promise<Array<{ id: string; name: string; score: number; mode: string; strikes: number }>> => {
     const { data, error } = await supabase.rpc("get_super_strike_leaderboard", { p_limit: limit });
     if (error) throw new Error(error.message);

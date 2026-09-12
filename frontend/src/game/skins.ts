@@ -10,7 +10,7 @@ export interface Skin {
   emissiveIntensity: number;
   metalness: number;
   roughness: number;
-  unlock: { games?: number; best?: number; strikes?: number };
+  unlock: { games?: number; best?: number; strikes?: number; points?: number };
   unlockText: string;
   effect?: "fire" | "ice";
 }
@@ -96,6 +96,46 @@ export const SKINS: Skin[] = [
     unlockText: "Score 180+ in a game",
     effect: "fire",
   },
+  {
+    id: "golden_gate",
+    name: "Golden Gate",
+    desc: "Championship gold with International Orange glow.",
+    swatch: "#f5c542",
+    color: 0xffb81c,
+    emissive: 0xff4f1f,
+    emissiveIntensity: 0.72,
+    metalness: 0.95,
+    roughness: 0.08,
+    unlock: { games: 15 },
+    unlockText: "Complete 15 games",
+  },
+  {
+    id: "hyphy_purple",
+    name: "Hyphy Purple",
+    desc: "Deep Bay purple charged with neon energy.",
+    swatch: "#b83dff",
+    color: 0x7814d4,
+    emissive: 0xd12cff,
+    emissiveIntensity: 1.25,
+    metalness: 0.48,
+    roughness: 0.12,
+    unlock: { strikes: 25 },
+    unlockText: "Land 25 total strikes",
+  },
+  {
+    id: "graffiti_bomb",
+    name: "Graffiti Bomb",
+    desc: "Blacktop core hit with electric graffiti colors.",
+    swatch: "#23f0ff",
+    color: 0x12131a,
+    emissive: 0xff2bd6,
+    emissiveIntensity: 1.4,
+    metalness: 0.62,
+    roughness: 0.16,
+    unlock: { points: 1500 },
+    unlockText: "1,500 Cool Points",
+  },
+
 ];
 
 export const SKIN_MAP: Record<string, Skin> = SKINS.reduce(
@@ -109,8 +149,9 @@ export interface UnlockStats {
   total_strikes: number;
 }
 
-export function isSkinUnlocked(skin: Skin, stats: UnlockStats): boolean {
+export function isSkinUnlocked(skin: Skin, stats: UnlockStats, ownedSkins: string[] = []): boolean {
   const u = skin.unlock;
+  if (u.points) return ownedSkins.includes(skin.id);
   if (u.games && stats.games < u.games) return false;
   if (u.best && stats.best < u.best) return false;
   if (u.strikes && stats.total_strikes < u.strikes) return false;

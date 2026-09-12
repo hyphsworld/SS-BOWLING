@@ -89,7 +89,11 @@ export default function Game() {
       identity.current = p;
       setPlayerId(p.id);
     }).catch(() => {});
-    getSelectedSkin().then(setBallSkin);
+    Promise.all([getSelectedSkin(), api.getSkinUnlocks()])
+      .then(([savedSkin, ownedSkins]) => {
+        setBallSkin(savedSkin === "graffiti_bomb" && !ownedSkins.includes(savedSkin) ? "classic" : savedSkin);
+      })
+      .catch(() => setBallSkin("classic"));
     if (mode === "cpu") {
       getRival().then((r) => { rivalRef.current = r; setRivalName(r.name); });
     }
