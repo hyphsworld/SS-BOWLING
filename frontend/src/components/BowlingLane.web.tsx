@@ -333,6 +333,71 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 32, 32), new THREE.MeshStandardMaterial({ color: startSkin.color, emissive: startSkin.emissive, emissiveIntensity: startSkin.emissiveIntensity, roughness: startSkin.roughness, metalness: startSkin.metalness }));
     ball.position.set(0, BALL_R, BALL_START_Z); ball.visible = false; scene.add(ball); ballRef.current = ball;
     const bl = new THREE.PointLight(startSkin.emissive, 0.9, 3.5); ball.add(bl); ballLightRef.current = bl;
+    // Cosmetic-only special ball trails. These meshes never participate in physics.
+    const fireParticles = Array.from({ length: 18 }, () => {
+      const particle = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 8, 6),
+        new THREE.MeshBasicMaterial({ color: 0xff5a12, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      );
+      particle.visible = false;
+      particle.userData.life = 0;
+      particle.userData.maxLife = 0.38;
+      scene.add(particle);
+      return particle;
+    });
+    const iceParticles = Array.from({ length: 22 }, () => {
+      const particle = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.035, 0),
+        new THREE.MeshBasicMaterial({ color: 0xbff8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      );
+      particle.visible = false;
+      particle.userData.life = 0;
+      particle.userData.maxLife = 0.48;
+      scene.add(particle);
+      return particle;
+    });
+    let fireCursor = 0;
+    let iceCursor = 0;
+    const emitSpecialTrail = (skinId: string, sourceBall: THREE.Mesh) => {
+      const pool = skinId === "fire" ? fireParticles : skinId === "ice" ? iceParticles : null;
+      if (!pool) return;
+      const cursor = skinId === "fire" ? fireCursor++ : iceCursor++;
+      const particle = pool[cursor % pool.length];
+      particle.position.set(
+        sourceBall.position.x + (Math.random() - 0.5) * 0.12,
+        sourceBall.position.y + (Math.random() - 0.35) * 0.11,
+        sourceBall.position.z + 0.10 + Math.random() * 0.16,
+      );
+      particle.scale.setScalar(skinId === "fire" ? 0.8 + Math.random() * 1.5 : 0.55 + Math.random());
+      particle.userData.life = particle.userData.maxLife;
+      particle.visible = true;
+      const material = particle.material as THREE.MeshBasicMaterial;
+      material.color.setHex(skinId === "fire" && Math.random() > 0.45 ? 0xffd21f : skinId === "fire" ? 0xff3b0a : Math.random() > 0.45 ? 0xffffff : 0x63e6ff);
+      material.opacity = 1;
+    };
+    const updateSpecialTrails = (dt: number) => {
+      fireParticles.forEach((particle) => {
+        if (particle.userData.life <= 0) return;
+        particle.userData.life -= dt;
+        particle.position.y += dt * 0.42;
+        particle.position.z += dt * 0.22;
+        particle.scale.multiplyScalar(1 + dt * 2.1);
+        const material = particle.material as THREE.MeshBasicMaterial;
+        material.opacity = Math.max(0, particle.userData.life / particle.userData.maxLife);
+        if (particle.userData.life <= 0) particle.visible = false;
+      });
+      iceParticles.forEach((particle) => {
+        if (particle.userData.life <= 0) return;
+        particle.userData.life -= dt;
+        particle.position.y -= dt * 0.18;
+        particle.position.x += Math.sin(particle.userData.life * 35) * dt * 0.12;
+        particle.rotation.x += dt * 7;
+        particle.rotation.y += dt * 9;
+        const material = particle.material as THREE.MeshBasicMaterial;
+        material.opacity = Math.max(0, particle.userData.life / particle.userData.maxLife);
+        if (particle.userData.life <= 0) particle.visible = false;
+      });
+    };
     const reflect = new THREE.Mesh(new THREE.CircleGeometry(BALL_R * 1.3, 20), new THREE.MeshBasicMaterial({ color: 0xff5a2a, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
     reflect.rotation.x = -Math.PI / 2; reflect.visible = false; scene.add(reflect); reflectRef.current = reflect;
 
@@ -357,6 +422,9 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         const z = BALL_START_Z + (PIN_FRONT_Z - BALL_START_Z) * eased;
         const sc = isGiant ? 1.7 : 1;
         b.scale.setScalar(sc); b.position.set(x, BALL_R * sc, z); b.rotation.x -= dt * 24;
+        if (!a.powerup && (skinRef.current === "fire" || skinRef.current === "ice")) {
+          emitSpecialTrail(skinRef.current, b);
+        }
         const rf = reflectRef.current!; rf.position.set(x, 0.012, z); rf.scale.setScalar(sc); (rf.material as THREE.MeshBasicMaterial).opacity = 0.3 * (1 - t * 0.5);
         camDz = -0.55 * Math.sin(Math.PI * t); camDy = -0.06 * Math.sin(Math.PI * t);
 
@@ -388,6 +456,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         }
       }
 
+      updateSpecialTrails(dt);
       const cam = cameraRef.current!;
       const cine = cinematicRef.current;
       let physicsDt = dt;

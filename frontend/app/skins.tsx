@@ -64,6 +64,14 @@ export default function Skins() {
                   style={styles.ball}
                 >
                   <View style={styles.ballShine} />
+                  {skin.effect && unlocked && (
+                    <Ionicons
+                      name={skin.effect === "fire" ? "flame" : "snow"}
+                      size={30}
+                      color={skin.effect === "fire" ? "#FFD84D" : "#FFFFFF"}
+                      style={styles.effectIcon}
+                    />
+                  )}
                   {!unlocked && (
                     <View style={styles.lockOverlay}>
                       <Ionicons name="lock-closed" size={22} color="#fff" />
@@ -131,6 +139,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  effectIcon: { textShadowColor: "rgba(255,255,255,0.9)", textShadowRadius: 10 },
   ballShine: {
     position: "absolute",
     top: 10,

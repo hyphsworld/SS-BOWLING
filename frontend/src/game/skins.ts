@@ -12,6 +12,7 @@ export interface Skin {
   roughness: number;
   unlock: { games?: number; best?: number; strikes?: number };
   unlockText: string;
+  effect?: "fire" | "ice";
 }
 
 export const SKINS: Skin[] = [
@@ -66,6 +67,34 @@ export const SKINS: Skin[] = [
     roughness: 0.15,
     unlock: { strikes: 5 },
     unlockText: "Land 5 total strikes",
+  },
+  {
+    id: "ice",
+    name: "Ice Breaker",
+    desc: "Frozen-blue core with a sparkling ice trail.",
+    swatch: "#8ff6ff",
+    color: 0xc8fbff,
+    emissive: 0x52dfff,
+    emissiveIntensity: 1.35,
+    metalness: 0.35,
+    roughness: 0.08,
+    unlock: { strikes: 10 },
+    unlockText: "Land 10 total strikes",
+    effect: "ice",
+  },
+  {
+    id: "fire",
+    name: "Inferno 180",
+    desc: "Molten-red core wrapped in a full flame trail.",
+    swatch: "#ff3b12",
+    color: 0xff431f,
+    emissive: 0xff2600,
+    emissiveIntensity: 1.65,
+    metalness: 0.18,
+    roughness: 0.22,
+    unlock: { best: 180 },
+    unlockText: "Score 180+ in a game",
+    effect: "fire",
   },
 ];
 
