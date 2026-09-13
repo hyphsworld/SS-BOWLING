@@ -62,11 +62,13 @@ function SuperStrikeIntro({ bottom, top, onFinish }: { bottom: number; top: numb
       />
       <VideoView
         player={player}
+        pointerEvents="none"
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         nativeControls={false}
         allowsFullscreen={false}
         allowsPictureInPicture={false}
+        playsInline
       />
       {muted && (
         <Pressable
