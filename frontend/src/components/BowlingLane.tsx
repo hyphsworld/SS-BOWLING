@@ -25,6 +25,9 @@ interface Props {
   knockdown: { key: number; pins: number[] } | null;
   ballSkin?: string;
   onArrive?: () => void;
+  // Kept in the shared native/web contract. The Alley Gator hazard currently
+  // runs only in the web renderer, while native treats the throw normally.
+  onHazardBlocked?: () => void;
 }
 
 // ---- world constants ----
