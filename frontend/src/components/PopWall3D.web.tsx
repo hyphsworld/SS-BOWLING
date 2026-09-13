@@ -55,7 +55,15 @@ export default function PopWall3D() {
     setWebHazardActive("pop-wall", false);
     const width = Math.max(1, host.clientWidth || window.innerWidth);
     const height = Math.max(1, host.clientHeight || window.innerHeight);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    } catch (error) {
+      // The lane owns the playable 2D fallback. Keep this decorative overlay
+      // inert when WebGL is unavailable so it cannot crash the game route.
+      console.warn("Pop Wall disabled because WebGL could not start.", error);
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(width, height, false); renderer.setClearColor(0, 0);
     Object.assign(renderer.domElement.style, { position: "absolute", inset: "0", width: "100%", height: "100%", pointerEvents: "none" }); host.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
