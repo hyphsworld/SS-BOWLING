@@ -6,6 +6,7 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,17 +31,21 @@ export default function Profile() {
   const [name, setNameState] = useState("");
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signedOut, setSignedOut] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const p = await ensurePlayer();
-      setNameState(p.name);
       try {
+        const p = await ensurePlayer();
+        setNameState(p.name);
         const s = await api.getStats(p.id);
         setStats(s);
-      } catch (e) {}
-      setLoading(false);
+      } catch {
+        setSignedOut(true);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -71,6 +76,29 @@ export default function Profile() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.brandPrimary} />
+        </View>
+      ) : signedOut ? (
+        <View style={styles.signedOut}>
+          <View style={styles.avatar}>
+            <Ionicons name="lock-closed" size={36} color={colors.onSurfaceInverse} />
+          </View>
+          <Text style={styles.signedOutTitle}>Sign in to view your stats</Text>
+          <Text style={styles.signedOutText}>
+            Your scores, wins, and Cool Points stay connected to your HYPHSWORLD ID.
+          </Text>
+          <PrimaryButton
+            testID="profile-login-button"
+            label="Login / Create ID"
+            icon="log-in"
+            onPress={() => Linking.openURL("https://hyphsworld.com/auth.html")}
+          />
+          <PrimaryButton
+            testID="profile-home-button"
+            label="Back to Bowling"
+            icon="home"
+            variant="outline"
+            onPress={() => router.replace("/")}
+          />
         </View>
       ) : (
         <View style={styles.body}>
@@ -135,6 +163,22 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: font.display, fontSize: type["2xl"], color: colors.onSurface },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  signedOut: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    padding: spacing.xl,
+  },
+  signedOutTitle: { fontFamily: font.display, fontSize: type.xl, color: colors.onSurface, textAlign: "center" },
+  signedOutText: {
+    fontFamily: font.text,
+    fontSize: type.base,
+    lineHeight: 22,
+    color: colors.onSurfaceSecondary,
+    textAlign: "center",
+    marginBottom: spacing.sm,
+  },
   body: { flex: 1, padding: spacing.lg, gap: spacing.md },
   avatarBox: { alignItems: "center", marginVertical: spacing.md },
   avatar: {

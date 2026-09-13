@@ -164,6 +164,8 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rafRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<any>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rendererUnavailableRef = useRef(false);
   const lastRef = useRef(0);
   const ballRef = useRef<THREE.Mesh | null>(null);
   const ballLightRef = useRef<THREE.PointLight | null>(null);
@@ -182,10 +184,14 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
   const flash = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
   const [flashColor, setFlashColor] = useState("#7FE9FF");
+  const [rendererUnavailable, setRendererUnavailable] = useState(false);
 
   useEffect(() => { onArriveRef.current = onArrive; }, [onArrive]);
   useEffect(() => { onHazardBlockedRef.current = onHazardBlocked; }, [onHazardBlocked]);
   useEffect(() => { standingSetRef.current = new Set(standing); }, [standing]);
+  useEffect(() => () => {
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+  }, []);
   useEffect(() => {
     skinRef.current = ballSkin || "classic";
     const skin = SKIN_MAP[skinRef.current];
@@ -206,6 +212,17 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     const a = throwAnim.current;
     a.active = true; a.arrived = false; a.t = 0; a.aim = throwState.aim; a.powerup = throwState.powerup; a.hazardChecked = false;
     a.dur = throwState.powerup === "muscle" ? 0.56 : 0.82;
+    if (rendererUnavailableRef.current) {
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = setTimeout(() => {
+        const activeHazard = activeWebHazard();
+        const targetX = throwState.powerup === "magnet" ? POCKET_X * WX : throwState.aim * AIM_SCALE * WX;
+        const blocked = activeHazard && popWallOutcome(throwState.powerup, targetX, 0).blocked;
+        if (blocked) onHazardBlockedRef.current?.();
+        else onArriveRef.current?.();
+      }, a.dur * 1000);
+      return;
+    }
     if (ballRef.current) {
       const mat = ballRef.current.material as THREE.MeshStandardMaterial;
       if (throwState.powerup) {
@@ -267,7 +284,14 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     if (!host) return;
     const width = Math.max(1, host.clientWidth || window.innerWidth);
     const height = Math.max(1, host.clientHeight || window.innerHeight);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+    } catch {
+      rendererUnavailableRef.current = true;
+      setRendererUnavailable(true);
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height, false);
     renderer.setClearColor(0x05060a, 1);
@@ -519,6 +543,38 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
 
   return (
     <View ref={hostRef} style={styles.container}>
+      {rendererUnavailable && (
+        <View testID="bowling-lane-fallback" style={styles.fallbackLane}>
+          <View style={styles.fallbackDeck}>
+            {standing.map((id) => {
+              const pin = PINS[id];
+              return (
+                <View
+                  key={id}
+                  style={[
+                    styles.fallbackPin,
+                    { left: `${50 + pin.x * 14}%`, top: `${8 + pin.row * 12}%` },
+                  ]}
+                >
+                  <View style={styles.fallbackPinStripe} />
+                </View>
+              );
+            })}
+          </View>
+          <View style={styles.fallbackArrow} />
+          {throwState && (
+            <View
+              key={throwState.key}
+              style={[
+                styles.fallbackBall,
+                { left: `${50 + throwState.aim * 24}%` },
+              ]}
+            />
+          )}
+          <View style={styles.fallbackGutterLeft} />
+          <View style={styles.fallbackGutterRight} />
+        </View>
+      )}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flash, { backgroundColor: flashColor }, flashStyle]} />
     </View>
   );
@@ -526,5 +582,51 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#05060a" },
+  fallbackLane: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+    backgroundColor: "#B77A3B",
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderColor: "#242830",
+  },
+  fallbackDeck: { position: "absolute", top: 0, left: "12%", right: "12%", height: "38%" },
+  fallbackPin: {
+    position: "absolute",
+    width: 18,
+    height: 42,
+    marginLeft: -9,
+    borderRadius: 9,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D6D8DC",
+  },
+  fallbackPinStripe: { position: "absolute", left: 1, right: 1, top: 12, height: 4, backgroundColor: "#D42A2A" },
+  fallbackArrow: {
+    position: "absolute",
+    left: "48%",
+    top: "54%",
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 16,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#3A2112",
+  },
+  fallbackBall: {
+    position: "absolute",
+    bottom: "10%",
+    width: 34,
+    height: 34,
+    marginLeft: -17,
+    borderRadius: 17,
+    backgroundColor: "#FF5A2A",
+    borderWidth: 3,
+    borderColor: "#FFB14A",
+  },
+  fallbackGutterLeft: { position: "absolute", top: 0, bottom: 0, left: 0, width: 10, backgroundColor: "#08090C" },
+  fallbackGutterRight: { position: "absolute", top: 0, bottom: 0, right: 0, width: 10, backgroundColor: "#08090C" },
   flash: { zIndex: 5 },
 });

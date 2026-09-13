@@ -44,14 +44,17 @@ export default function Coach() {
 
   useEffect(() => {
     (async () => {
-      const p = await ensurePlayer();
-      sessionId.current = p.id;
       try {
+        const p = await ensurePlayer();
+        sessionId.current = p.id;
         const hist = await api.aiChatHistory(p.id);
         if (hist?.length) {
           setMessages(hist.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })));
         }
-      } catch (e) {}
+      } catch {
+        // Coaching tips are local today, so guests can still learn the game.
+        sessionId.current = "guest";
+      }
     })();
   }, []);
 
