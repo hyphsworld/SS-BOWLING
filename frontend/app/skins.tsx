@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: font.display, fontSize: type["2xl"], color: colors.onSurface },
   walletRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 6 },
-  walletText: { fontFamily: font.display, color: colors.brandPrimary, fontSize: type.md },
+  walletText: { fontFamily: font.display, color: colors.brandPrimary, fontSize: type.base },
   notice: { fontFamily: font.text, color: colors.brandSecondary, textAlign: "center", paddingHorizontal: spacing.lg, paddingBottom: 4 },
   list: { padding: spacing.lg, gap: spacing.md },
   card: {
