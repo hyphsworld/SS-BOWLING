@@ -35,7 +35,7 @@ function SuperStrikeIntro({ bottom, top, onFinish }: { bottom: number; top: numb
 
   useEffect(() => {
     const ended = player.addListener("playToEnd", onFinish);
-    const fallback = setTimeout(onFinish, 11000);
+    const fallback = setTimeout(onFinish, 13000);
     return () => {
       ended.remove();
       clearTimeout(fallback);
