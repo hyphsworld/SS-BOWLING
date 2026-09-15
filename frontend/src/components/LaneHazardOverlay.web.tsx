@@ -203,18 +203,12 @@ export default function LaneHazardOverlay() {
 
       {warning && (
         <View style={styles.waterWarning}>
-          <View style={styles.waterSurface} />
           <Animated.View style={[styles.submergedHead, eyeStyle]}>
             <View style={styles.eyesRow}>
               <View style={styles.marbleEye}><View style={styles.eyePupil} /></View>
               <View style={styles.marbleEye}><View style={styles.eyePupil} /></View>
             </View>
           </Animated.View>
-          <View style={styles.waterLine} />
-          <View style={styles.reflections}>
-            <View style={styles.reflection} />
-            <View style={styles.reflection} />
-          </View>
         </View>
       )}
 
@@ -240,16 +234,11 @@ const styles = StyleSheet.create({
   },
   waterWarning: {
     position: "absolute", top: "62%", right: 8, width: 185, height: 44,
-    alignItems: "center", justifyContent: "flex-end", zIndex: 9999,
-  },
-  waterSurface: {
-    position: "absolute", bottom: 3, width: 108, height: 20, borderRadius: 60,
-    backgroundColor: "rgba(4,20,27,0.78)",
+    alignItems: "center", zIndex: 9999,
   },
   submergedHead: {
-    position: "absolute", bottom: 12, width: 76, height: 24, borderRadius: 38,
-    backgroundColor: "rgba(7,16,13,0.96)", borderTopWidth: 2, borderTopColor: "rgba(42,65,49,0.9)",
-    transformOrigin: "center bottom", alignItems: "center",
+    position: "absolute", top: 2, width: 76, height: 16,
+    transformOrigin: "center", alignItems: "center",
   },
   eyesRow: { position: "absolute", top: 2, width: 55, flexDirection: "row", justifyContent: "space-between" },
   marbleEye: {
@@ -258,12 +247,6 @@ const styles = StyleSheet.create({
     shadowColor: "#ff6a00", shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
   },
   eyePupil: { width: 2, height: 9, borderRadius: 2, backgroundColor: "#190c06" },
-  waterLine: {
-    position: "absolute", bottom: 10, width: 100, height: 5, borderRadius: 20,
-    backgroundColor: "rgba(12,39,47,0.92)", borderTopWidth: 1, borderTopColor: "rgba(93,139,149,0.58)",
-  },
-  reflections: { position: "absolute", bottom: 1, width: 57, flexDirection: "row", justifyContent: "space-between" },
-  reflection: { width: 4, height: 8, borderRadius: 4, backgroundColor: "rgba(255,132,21,0.48)" },
   gatorWrap: { position: "absolute", right: 8, bottom: "38%", width: 185, alignItems: "center", zIndex: 9999 },
   gatorArt: { width: 175, height: 143 },
   gatorArtChomp: { width: 192, height: 156, transform: [{ rotate: "-4deg" }] },
