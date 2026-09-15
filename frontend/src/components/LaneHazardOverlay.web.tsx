@@ -76,8 +76,8 @@ export default function LaneHazardOverlay() {
       setChomp(false);
       activeRef.current = false;
       setWebHazardActive("alley-gator", false);
-      gatorX.value = 150;
-      gatorY.value = 12;
+      gatorX.value = 210;
+      gatorY.value = 0;
       biteY.value = 0;
       gatorScale.value = 0.86;
       gatorRotate.value = 4;
@@ -95,21 +95,17 @@ export default function LaneHazardOverlay() {
         setWarning(false);
         activeRef.current = true;
         setWebHazardActive("alley-gator", true);
-        gatorX.value = 0;
-        gatorY.value = 115;
-        gatorScale.value = 0.42;
+        gatorX.value = 210;
+        gatorY.value = 0;
+        gatorScale.value = 0.72;
         gatorX.value = withSequence(
-          withTiming(0, { duration: 240 }),
+          withTiming(-8, { duration: 240, easing: Easing.out(Easing.back(1.7)) }),
+          withTiming(4, { duration: 85 }),
+          withTiming(0, { duration: 75 }),
           withTiming(0, { duration: 2200 }),
-          withTiming(0, { duration: 330 }),
+          withTiming(210, { duration: 330, easing: Easing.in(Easing.quad) }),
         );
-        gatorY.value = withSequence(
-          withTiming(-10, { duration: 180, easing: Easing.out(Easing.back(1.7)) }),
-          withTiming(3, { duration: 80 }),
-          withTiming(0, { duration: 120 }),
-          withTiming(0, { duration: 2200 }),
-          withTiming(115, { duration: 330, easing: Easing.in(Easing.quad) }),
-        );
+        gatorY.value = 0;
         gatorScale.value = withSequence(
           withTiming(1.1, { duration: 180, easing: Easing.out(Easing.back(1.4)) }),
           withTiming(1, { duration: 130 }),
@@ -243,7 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(124,255,73,0.22)",
   },
   waterWarning: {
-    position: "absolute", top: "48%", alignSelf: "center", width: 108, height: 44,
+    position: "absolute", top: "62%", right: "19%", width: 108, height: 44,
     alignItems: "center", justifyContent: "flex-end", zIndex: 9999,
   },
   waterSurface: {
@@ -268,7 +264,7 @@ const styles = StyleSheet.create({
   },
   reflections: { position: "absolute", bottom: 1, width: 57, flexDirection: "row", justifyContent: "space-between" },
   reflection: { width: 4, height: 8, borderRadius: 4, backgroundColor: "rgba(255,132,21,0.48)" },
-  gatorWrap: { position: "absolute", bottom: "43%", alignSelf: "center", width: 185, alignItems: "center", zIndex: 9999 },
+  gatorWrap: { position: "absolute", right: 8, bottom: "38%", width: 185, alignItems: "center", zIndex: 9999 },
   gatorArt: { width: 175, height: 143 },
   gatorArtChomp: { width: 192, height: 156, transform: [{ rotate: "-4deg" }] },
   gatorGotIt: { color: "#ffd34d", fontWeight: "900", fontSize: 10, marginTop: -15, textAlign: "center", textShadowColor: "#000", textShadowRadius: 5 },
