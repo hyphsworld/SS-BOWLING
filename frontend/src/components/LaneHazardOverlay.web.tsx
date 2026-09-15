@@ -16,11 +16,16 @@ type HazardBridgePayload = {
   ballX: number;
 };
 
+type GatorSide = "left" | "right";
+type WarningZone = "wall" | "lane";
+
 export default function LaneHazardOverlay() {
   const [visible, setVisible] = useState(false);
   const [warning, setWarning] = useState(false);
   const [impactText, setImpactText] = useState("GATOR GOT IT!");
   const [chomp, setChomp] = useState(false);
+  const [gatorSide, setGatorSide] = useState<GatorSide>("right");
+  const [warningZone, setWarningZone] = useState<WarningZone>("wall");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeRef = useRef(false);
@@ -69,14 +74,18 @@ export default function LaneHazardOverlay() {
   const schedule = (first = false) => {
     const wait = first ? 1800 : 6500 + Math.floor(Math.random() * 3500);
     timerRef.current = setTimeout(() => {
+      const nextSide: GatorSide = Math.random() < 0.5 ? "left" : "right";
+      const firstZone: WarningZone = Math.random() < 0.5 ? "wall" : "lane";
       cycleRef.current += 1;
+      setGatorSide(nextSide);
+      setWarningZone(firstZone);
       setVisible(true);
       setWarning(true);
       setImpactText("GATOR GOT IT!");
       setChomp(false);
       activeRef.current = false;
       setWebHazardActive("alley-gator", false);
-      gatorX.value = 210;
+      gatorX.value = nextSide === "right" ? 210 : -210;
       gatorY.value = 0;
       biteY.value = 0;
       gatorScale.value = 0.86;
@@ -92,18 +101,25 @@ export default function LaneHazardOverlay() {
       );
 
       cleanupRef.current.push(setTimeout(() => {
+        setWarningZone(firstZone === "wall" ? "lane" : "wall");
+      }, 430));
+
+      cleanupRef.current.push(setTimeout(() => {
         setWarning(false);
         activeRef.current = true;
         setWebHazardActive("alley-gator", true);
-        gatorX.value = 210;
+        const entryOffset = nextSide === "right" ? 210 : -210;
+        const overshoot = nextSide === "right" ? -8 : 8;
+        const rebound = nextSide === "right" ? 4 : -4;
+        gatorX.value = entryOffset;
         gatorY.value = 0;
         gatorScale.value = 0.72;
         gatorX.value = withSequence(
-          withTiming(-8, { duration: 240, easing: Easing.out(Easing.back(1.7)) }),
-          withTiming(4, { duration: 85 }),
+          withTiming(overshoot, { duration: 240, easing: Easing.out(Easing.back(1.7)) }),
+          withTiming(rebound, { duration: 85 }),
           withTiming(0, { duration: 75 }),
           withTiming(0, { duration: 2470 }),
-          withTiming(210, { duration: 330, easing: Easing.in(Easing.quad) }),
+          withTiming(entryOffset, { duration: 330, easing: Easing.in(Easing.quad) }),
         );
         gatorY.value = 0;
         gatorScale.value = withSequence(
@@ -202,7 +218,11 @@ export default function LaneHazardOverlay() {
       <Animated.View style={[styles.impactFlash, flashStyle]} />
 
       {warning && (
-        <View style={styles.waterWarning}>
+        <View style={[
+          styles.eyeWarning,
+          gatorSide === "left" ? styles.warningLeft : styles.warningRight,
+          warningZone === "wall" ? styles.warningWall : styles.warningLane,
+        ]}>
           <Animated.View style={[styles.submergedHead, eyeStyle]}>
             <View style={styles.eyesRow}>
               <View style={styles.marbleEye}><View style={styles.eyePupil} /></View>
@@ -213,11 +233,20 @@ export default function LaneHazardOverlay() {
       )}
 
       {!warning && (
-        <Animated.View style={[styles.gatorWrap, gatorStyle]}>
+        <Animated.View style={[
+          styles.gatorWrap,
+          gatorSide === "left" ? styles.gatorLeft : styles.gatorRight,
+          gatorStyle,
+        ]}>
           <Image
             source={require("@/assets/images/alley-gator-2d.png")}
             resizeMode="contain"
-            style={[styles.gatorArt, chomp && styles.gatorArtChomp]}
+            style={[
+              styles.gatorArt,
+              chomp
+                ? (gatorSide === "left" ? styles.gatorArtChompLeft : styles.gatorArtChomp)
+                : (gatorSide === "left" && styles.gatorArtLeft),
+            ]}
           />
           <Text style={styles.gatorGotIt}>{impactText}</Text>
           {chomp && <Text style={styles.chompBurst}>CHOMP!</Text>}
@@ -232,10 +261,14 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(124,255,73,0.22)",
   },
-  waterWarning: {
-    position: "absolute", top: "62%", right: 8, width: 185, height: 44,
+  eyeWarning: {
+    position: "absolute", width: 76, height: 20,
     alignItems: "center", zIndex: 9999,
   },
+  warningLeft: { left: "7%" },
+  warningRight: { right: "7%" },
+  warningWall: { top: "48%" },
+  warningLane: { top: "62%" },
   submergedHead: {
     position: "absolute", top: 2, width: 76, height: 16,
     transformOrigin: "center", alignItems: "center",
@@ -247,9 +280,13 @@ const styles = StyleSheet.create({
     shadowColor: "#ff6a00", shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
   },
   eyePupil: { width: 2, height: 9, borderRadius: 2, backgroundColor: "#190c06" },
-  gatorWrap: { position: "absolute", right: 8, bottom: "38%", width: 185, alignItems: "center", zIndex: 9999 },
+  gatorWrap: { position: "absolute", bottom: "38%", width: 185, alignItems: "center", zIndex: 9999 },
+  gatorLeft: { left: 8 },
+  gatorRight: { right: 8 },
   gatorArt: { width: 175, height: 143 },
+  gatorArtLeft: { transform: [{ scaleX: -1 }] },
   gatorArtChomp: { width: 192, height: 156, transform: [{ rotate: "-4deg" }] },
+  gatorArtChompLeft: { width: 192, height: 156, transform: [{ scaleX: -1 }, { rotate: "-4deg" }] },
   gatorGotIt: { color: "#ffd34d", fontWeight: "900", fontSize: 10, marginTop: -15, textAlign: "center", textShadowColor: "#000", textShadowRadius: 5 },
   chompBurst: {
     position: "absolute",
