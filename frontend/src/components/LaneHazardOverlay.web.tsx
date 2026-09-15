@@ -102,7 +102,7 @@ export default function LaneHazardOverlay() {
           withTiming(-8, { duration: 240, easing: Easing.out(Easing.back(1.7)) }),
           withTiming(4, { duration: 85 }),
           withTiming(0, { duration: 75 }),
-          withTiming(0, { duration: 2200 }),
+          withTiming(0, { duration: 2470 }),
           withTiming(210, { duration: 330, easing: Easing.in(Easing.quad) }),
         );
         gatorY.value = 0;
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(124,255,73,0.22)",
   },
   waterWarning: {
-    position: "absolute", top: "62%", right: "19%", width: 108, height: 44,
+    position: "absolute", top: "62%", right: 8, width: 185, height: 44,
     alignItems: "center", justifyContent: "flex-end", zIndex: 9999,
   },
   waterSurface: {
