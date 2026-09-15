@@ -31,8 +31,6 @@ export default function LaneHazardOverlay() {
   const gatorScale = useSharedValue(0.86);
   const gatorRotate = useSharedValue(4);
   const gatorOpacity = useSharedValue(1);
-  const warningPulse = useSharedValue(0.55);
-  const eyeBlink = useSharedValue(1);
   const impactFlash = useSharedValue(0);
 
   const clearCycle = () => {
@@ -83,21 +81,6 @@ export default function LaneHazardOverlay() {
       gatorScale.value = 0.86;
       gatorRotate.value = 4;
       gatorOpacity.value = 1;
-      eyeBlink.value = withSequence(
-        withTiming(1, { duration: 120 }),
-        withTiming(0.08, { duration: 70 }),
-        withTiming(1, { duration: 90 }),
-        withTiming(1, { duration: 210 }),
-        withTiming(0.08, { duration: 65 }),
-        withTiming(1, { duration: 95 }),
-      );
-      warningPulse.value = withSequence(
-        withTiming(1, { duration: 140 }),
-        withTiming(0.5, { duration: 140 }),
-        withTiming(1, { duration: 140 }),
-        withTiming(0.5, { duration: 140 }),
-        withTiming(1, { duration: 140 }),
-      );
 
       cleanupRef.current.push(setTimeout(() => {
         setWarning(false);
@@ -204,10 +187,6 @@ export default function LaneHazardOverlay() {
       { rotate: `${gatorRotate.value}deg` },
     ],
   }));
-  const warningStyle = useAnimatedStyle(() => ({ opacity: warningPulse.value }));
-  const eyeStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleY: eyeBlink.value }],
-  }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: impactFlash.value }));
 
   if (!visible) return null;
@@ -215,22 +194,6 @@ export default function LaneHazardOverlay() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Animated.View style={[styles.impactFlash, flashStyle]} />
-
-      {warning && (
-        <Animated.View style={[styles.waterWarning, warningStyle]}>
-          <View style={styles.waterShadow} />
-          <View style={[styles.ripple, styles.rippleWide]} />
-          <View style={styles.ripple} />
-          <View style={styles.eyesRow}>
-            <Animated.View style={[styles.eye, styles.eyeLeft, eyeStyle]}>
-              <View style={styles.pupil} />
-            </Animated.View>
-            <Animated.View style={[styles.eye, styles.eyeRight, eyeStyle]}>
-              <View style={styles.pupil} />
-            </Animated.View>
-          </View>
-        </Animated.View>
-      )}
 
       {!warning && (
         <Animated.View style={[styles.gatorWrap, gatorStyle]}>
@@ -252,38 +215,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(124,255,73,0.22)",
   },
-  waterWarning: {
-    position: "absolute",
-    top: "47%",
-    alignSelf: "center",
-    width: 190,
-    height: 78,
-    alignItems: "center",
-    zIndex: 9999,
-  },
-  waterShadow: {
-    position: "absolute", top: 34, width: 170, height: 30, borderRadius: 90,
-    backgroundColor: "rgba(3,24,27,0.78)", borderWidth: 2, borderColor: "rgba(71,255,184,0.48)",
-    shadowColor: "#22e1ff", shadowOpacity: 0.55, shadowRadius: 12,
-  },
-  ripple: {
-    position: "absolute", top: 30, width: 145, height: 34, borderRadius: 90,
-    borderWidth: 2, borderColor: "rgba(126,255,207,0.72)",
-  },
-  rippleWide: { top: 25, width: 190, height: 46, borderColor: "rgba(34,225,255,0.42)" },
-  eyesRow: { position: "absolute", top: 14, flexDirection: "row", gap: 28 },
-  eye: {
-    width: 38, height: 24, borderRadius: 20, backgroundColor: "#dfff28", borderWidth: 3,
-    borderColor: "#4b7d13", alignItems: "center", justifyContent: "center",
-    shadowColor: "#caff00", shadowOpacity: 1, shadowRadius: 12,
-  },
-  eyeLeft: { transform: [{ rotate: "8deg" }] },
-  eyeRight: { transform: [{ rotate: "-8deg" }] },
-  pupil: { width: 5, height: 16, borderRadius: 4, backgroundColor: "#050807" },
-  gatorWrap: { position: "absolute", bottom: "24%", alignSelf: "center", width: 250, alignItems: "center", zIndex: 9999 },
-  gatorArt: { width: 230, height: 188 },
-  gatorArtChomp: { width: 248, height: 200, transform: [{ rotate: "-4deg" }] },
-  gatorGotIt: { color: "#ffd34d", fontWeight: "900", fontSize: 12, marginTop: -18, textAlign: "center", textShadowColor: "#000", textShadowRadius: 5 },
+  gatorWrap: { position: "absolute", bottom: "43%", alignSelf: "center", width: 185, alignItems: "center", zIndex: 9999 },
+  gatorArt: { width: 175, height: 143 },
+  gatorArtChomp: { width: 192, height: 156, transform: [{ rotate: "-4deg" }] },
+  gatorGotIt: { color: "#ffd34d", fontWeight: "900", fontSize: 10, marginTop: -15, textAlign: "center", textShadowColor: "#000", textShadowRadius: 5 },
   chompBurst: {
     position: "absolute",
     top: -18,
