@@ -207,15 +207,18 @@ export default function LaneHazardOverlay() {
 
       {warning && (
         <View style={styles.waterWarning}>
-          <View style={styles.waterWake} />
-          <Animated.View style={[styles.eyeCrop, eyeStyle]}>
-            <Image
-              source={require("@/assets/images/alley-gator-2d.png")}
-              resizeMode="contain"
-              style={styles.eyeArt}
-            />
+          <View style={styles.waterSurface} />
+          <Animated.View style={[styles.submergedHead, eyeStyle]}>
+            <View style={styles.eyesRow}>
+              <View style={styles.marbleEye}><View style={styles.eyePupil} /></View>
+              <View style={styles.marbleEye}><View style={styles.eyePupil} /></View>
+            </View>
           </Animated.View>
           <View style={styles.waterLine} />
+          <View style={styles.reflections}>
+            <View style={styles.reflection} />
+            <View style={styles.reflection} />
+          </View>
         </View>
       )}
 
@@ -240,22 +243,31 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(124,255,73,0.22)",
   },
   waterWarning: {
-    position: "absolute", top: "48%", alignSelf: "center", width: 135, height: 54,
+    position: "absolute", top: "48%", alignSelf: "center", width: 108, height: 44,
     alignItems: "center", justifyContent: "flex-end", zIndex: 9999,
   },
-  waterWake: {
-    position: "absolute", bottom: 0, width: 132, height: 22, borderRadius: 70,
-    backgroundColor: "rgba(2,18,24,0.78)", borderWidth: 1, borderColor: "rgba(75,174,180,0.58)",
+  waterSurface: {
+    position: "absolute", bottom: 3, width: 108, height: 20, borderRadius: 60,
+    backgroundColor: "rgba(4,20,27,0.78)",
   },
-  eyeCrop: {
-    position: "absolute", bottom: 11, width: 96, height: 37, overflow: "hidden",
-    transformOrigin: "center bottom",
+  submergedHead: {
+    position: "absolute", bottom: 12, width: 76, height: 24, borderRadius: 38,
+    backgroundColor: "rgba(7,16,13,0.96)", borderTopWidth: 2, borderTopColor: "rgba(42,65,49,0.9)",
+    transformOrigin: "center bottom", alignItems: "center",
   },
-  eyeArt: { position: "absolute", width: 180, height: 191, left: 0, top: -22 },
+  eyesRow: { position: "absolute", top: 2, width: 55, flexDirection: "row", justifyContent: "space-between" },
+  marbleEye: {
+    width: 11, height: 13, borderRadius: 7, backgroundColor: "#f28b35", borderWidth: 1,
+    borderColor: "#6b2b10", alignItems: "center", justifyContent: "center",
+    shadowColor: "#ff7a24", shadowOpacity: 0.42, shadowRadius: 3,
+  },
+  eyePupil: { width: 2, height: 9, borderRadius: 2, backgroundColor: "#190c06" },
   waterLine: {
-    position: "absolute", bottom: 9, width: 116, height: 8, borderRadius: 30,
-    backgroundColor: "rgba(11,48,54,0.9)", borderTopWidth: 1, borderTopColor: "rgba(122,216,216,0.72)",
+    position: "absolute", bottom: 10, width: 100, height: 5, borderRadius: 20,
+    backgroundColor: "rgba(12,39,47,0.92)", borderTopWidth: 1, borderTopColor: "rgba(93,139,149,0.58)",
   },
+  reflections: { position: "absolute", bottom: 1, width: 57, flexDirection: "row", justifyContent: "space-between" },
+  reflection: { width: 5, height: 8, borderRadius: 4, backgroundColor: "rgba(242,139,53,0.28)" },
   gatorWrap: { position: "absolute", bottom: "43%", alignSelf: "center", width: 185, alignItems: "center", zIndex: 9999 },
   gatorArt: { width: 175, height: 143 },
   gatorArtChomp: { width: 192, height: 156, transform: [{ rotate: "-4deg" }] },
