@@ -31,6 +31,7 @@ export default function LaneHazardOverlay() {
   const gatorScale = useSharedValue(0.86);
   const gatorRotate = useSharedValue(4);
   const gatorOpacity = useSharedValue(1);
+  const eyeBlink = useSharedValue(1);
   const impactFlash = useSharedValue(0);
 
   const clearCycle = () => {
@@ -81,6 +82,14 @@ export default function LaneHazardOverlay() {
       gatorScale.value = 0.86;
       gatorRotate.value = 4;
       gatorOpacity.value = 1;
+      eyeBlink.value = withSequence(
+        withTiming(1, { duration: 160 }),
+        withTiming(0.12, { duration: 75 }),
+        withTiming(1, { duration: 105 }),
+        withTiming(1, { duration: 270 }),
+        withTiming(0.12, { duration: 70 }),
+        withTiming(1, { duration: 100 }),
+      );
 
       cleanupRef.current.push(setTimeout(() => {
         setWarning(false);
@@ -187,6 +196,7 @@ export default function LaneHazardOverlay() {
       { rotate: `${gatorRotate.value}deg` },
     ],
   }));
+  const eyeStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: eyeBlink.value }] }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: impactFlash.value }));
 
   if (!visible) return null;
@@ -194,6 +204,20 @@ export default function LaneHazardOverlay() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Animated.View style={[styles.impactFlash, flashStyle]} />
+
+      {warning && (
+        <View style={styles.waterWarning}>
+          <View style={styles.waterWake} />
+          <Animated.View style={[styles.eyeCrop, eyeStyle]}>
+            <Image
+              source={require("@/assets/images/alley-gator-2d.png")}
+              resizeMode="contain"
+              style={styles.eyeArt}
+            />
+          </Animated.View>
+          <View style={styles.waterLine} />
+        </View>
+      )}
 
       {!warning && (
         <Animated.View style={[styles.gatorWrap, gatorStyle]}>
@@ -214,6 +238,23 @@ const styles = StyleSheet.create({
   impactFlash: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(124,255,73,0.22)",
+  },
+  waterWarning: {
+    position: "absolute", top: "48%", alignSelf: "center", width: 135, height: 54,
+    alignItems: "center", justifyContent: "flex-end", zIndex: 9999,
+  },
+  waterWake: {
+    position: "absolute", bottom: 0, width: 132, height: 22, borderRadius: 70,
+    backgroundColor: "rgba(2,18,24,0.78)", borderWidth: 1, borderColor: "rgba(75,174,180,0.58)",
+  },
+  eyeCrop: {
+    position: "absolute", bottom: 11, width: 96, height: 37, overflow: "hidden",
+    transformOrigin: "center bottom",
+  },
+  eyeArt: { position: "absolute", width: 180, height: 191, left: 0, top: -22 },
+  waterLine: {
+    position: "absolute", bottom: 9, width: 116, height: 8, borderRadius: 30,
+    backgroundColor: "rgba(11,48,54,0.9)", borderTopWidth: 1, borderTopColor: "rgba(122,216,216,0.72)",
   },
   gatorWrap: { position: "absolute", bottom: "43%", alignSelf: "center", width: 185, alignItems: "center", zIndex: 9999 },
   gatorArt: { width: 175, height: 143 },
