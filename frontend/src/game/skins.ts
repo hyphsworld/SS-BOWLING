@@ -92,8 +92,8 @@ export const SKINS: Skin[] = [
     emissiveIntensity: 1.65,
     metalness: 0.18,
     roughness: 0.22,
-    unlock: { best: 180 },
-    unlockText: "Score 180+ in a game",
+    unlock: { strikes: 180 },
+    unlockText: "Land 180 total strikes",
     effect: "fire",
   },
   {

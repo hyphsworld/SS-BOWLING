@@ -28,7 +28,7 @@ import { api, Room } from "@/src/api/client";
 import { ensurePlayer } from "@/src/store/player";
 import { playSound, stopSound } from "@/src/audio/sounds";
 import { getRival, Rival } from "@/src/store/rival";
-import { getSelectedSkin } from "@/src/game/skins";
+import { getSelectedSkin, isSkinUnlocked, SKIN_MAP } from "@/src/game/skins";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const FRAME_BREAK_MS = 2600;
@@ -88,10 +88,10 @@ export default function Game() {
     ensurePlayer().then((p) => {
       identity.current = p;
       setPlayerId(p.id);
-    }).catch(() => {});
-    Promise.all([getSelectedSkin(), api.getSkinUnlocks()])
-      .then(([savedSkin, ownedSkins]) => {
-        setBallSkin(savedSkin === "graffiti_bomb" && !ownedSkins.includes(savedSkin) ? "classic" : savedSkin);
+      return Promise.all([getSelectedSkin(), api.getSkinUnlocks(), api.getStats(p.id)]);
+    }).then(([savedSkin, ownedSkins, stats]) => {
+        const skin = SKIN_MAP[savedSkin];
+        setBallSkin(skin && isSkinUnlocked(skin, stats, ownedSkins) ? savedSkin : "classic");
       })
       .catch(() => setBallSkin("classic"));
     if (mode === "cpu") {
