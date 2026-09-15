@@ -257,9 +257,9 @@ const styles = StyleSheet.create({
   },
   eyesRow: { position: "absolute", top: 2, width: 55, flexDirection: "row", justifyContent: "space-between" },
   marbleEye: {
-    width: 11, height: 13, borderRadius: 7, backgroundColor: "#f28b35", borderWidth: 1,
-    borderColor: "#6b2b10", alignItems: "center", justifyContent: "center",
-    shadowColor: "#ff7a24", shadowOpacity: 0.42, shadowRadius: 3,
+    width: 11, height: 13, borderRadius: 7, backgroundColor: "#ffb21c", borderWidth: 1,
+    borderColor: "#a94a08", alignItems: "center", justifyContent: "center",
+    shadowColor: "#ff6a00", shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
   },
   eyePupil: { width: 2, height: 9, borderRadius: 2, backgroundColor: "#190c06" },
   waterLine: {
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(12,39,47,0.92)", borderTopWidth: 1, borderTopColor: "rgba(93,139,149,0.58)",
   },
   reflections: { position: "absolute", bottom: 1, width: 57, flexDirection: "row", justifyContent: "space-between" },
-  reflection: { width: 5, height: 8, borderRadius: 4, backgroundColor: "rgba(242,139,53,0.28)" },
+  reflection: { width: 4, height: 8, borderRadius: 4, backgroundColor: "rgba(255,132,21,0.48)" },
   gatorWrap: { position: "absolute", bottom: "43%", alignSelf: "center", width: 185, alignItems: "center", zIndex: 9999 },
   gatorArt: { width: 175, height: 143 },
   gatorArtChomp: { width: 192, height: 156, transform: [{ rotate: "-4deg" }] },
