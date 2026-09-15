@@ -242,8 +242,8 @@ const styles = StyleSheet.create({
   },
   eyesRow: { position: "absolute", top: 2, width: 55, flexDirection: "row", justifyContent: "space-between" },
   marbleEye: {
-    width: 11, height: 13, borderRadius: 7, backgroundColor: "#ffb21c", borderWidth: 1,
-    borderColor: "#a94a08", alignItems: "center", justifyContent: "center",
+    width: 11, height: 13, borderRadius: 7, backgroundColor: "#ffb21c",
+    alignItems: "center", justifyContent: "center",
     shadowColor: "#ff6a00", shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
   },
   eyePupil: { width: 2, height: 9, borderRadius: 2, backgroundColor: "#190c06" },
