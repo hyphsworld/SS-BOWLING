@@ -27,6 +27,7 @@ export default function LaneHazardOverlay() {
   const cycleRef = useRef(0);
   const gatorX = useSharedValue(150);
   const gatorY = useSharedValue(12);
+  const biteY = useSharedValue(0);
   const gatorScale = useSharedValue(0.86);
   const gatorRotate = useSharedValue(4);
   const gatorOpacity = useSharedValue(1);
@@ -51,7 +52,7 @@ export default function LaneHazardOverlay() {
       withTiming(1.08, { duration: 80 }),
       withTiming(1, { duration: 90 }),
     );
-    gatorY.value = withSequence(
+    biteY.value = withSequence(
       withTiming(-18, { duration: 65 }),
       withTiming(8, { duration: 70 }),
       withTiming(-5, { duration: 65 }),
@@ -78,6 +79,7 @@ export default function LaneHazardOverlay() {
       setWebHazardActive("alley-gator", false);
       gatorX.value = 150;
       gatorY.value = 12;
+      biteY.value = 0;
       gatorScale.value = 0.86;
       gatorRotate.value = 4;
       gatorOpacity.value = 1;
@@ -197,6 +199,7 @@ export default function LaneHazardOverlay() {
     transform: [
       { translateX: gatorX.value },
       { translateY: gatorY.value },
+      { translateY: biteY.value },
       { scale: gatorScale.value },
       { rotate: `${gatorRotate.value}deg` },
     ],
