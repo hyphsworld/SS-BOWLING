@@ -17,19 +17,23 @@ type HazardBridgePayload = {
 };
 
 type GatorSide = "left" | "right";
-type WarningZone = "wall" | "lane";
+type WarningZone = "wallHigh" | "wallLow" | "lane";
+
+const WARNING_SPOTS: WarningZone[] = ["wallHigh", "wallLow", "lane"];
 
 export default function LaneHazardOverlay() {
   const [visible, setVisible] = useState(false);
   const [warning, setWarning] = useState(false);
   const [impactText, setImpactText] = useState("GATOR GOT IT!");
   const [chomp, setChomp] = useState(false);
+  const [showGator, setShowGator] = useState(false);
   const [gatorSide, setGatorSide] = useState<GatorSide>("right");
-  const [warningZone, setWarningZone] = useState<WarningZone>("wall");
+  const [warningZone, setWarningZone] = useState<WarningZone>("wallHigh");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeRef = useRef(false);
   const cycleRef = useRef(0);
+  const gatorSideRef = useRef<GatorSide>("right");
   const gatorX = useSharedValue(150);
   const gatorY = useSharedValue(12);
   const biteY = useSharedValue(0);
@@ -71,69 +75,78 @@ export default function LaneHazardOverlay() {
     cleanupRef.current.push(setTimeout(() => setChomp(false), 260));
   };
 
+  const stageGatorAttack = () => {
+    const side = gatorSideRef.current;
+    const entryOffset = side === "right" ? 210 : -210;
+    const overshoot = side === "right" ? -12 : 12;
+    const rebound = side === "right" ? 4 : -4;
+    setWarning(false);
+    setShowGator(true);
+    setChomp(false);
+    gatorX.value = entryOffset;
+    gatorY.value = 0;
+    biteY.value = 0;
+    gatorScale.value = 0.72;
+    gatorRotate.value = 4;
+    gatorOpacity.value = 1;
+    gatorX.value = withSequence(
+      withTiming(overshoot, { duration: 160, easing: Easing.out(Easing.back(1.7)) }),
+      withTiming(rebound, { duration: 70 }),
+      withTiming(0, { duration: 50 }),
+      withTiming(0, { duration: 330 }),
+      withTiming(entryOffset, { duration: 220, easing: Easing.in(Easing.quad) }),
+    );
+    gatorScale.value = withSequence(
+      withTiming(1.1, { duration: 145, easing: Easing.out(Easing.back(1.4)) }),
+      withTiming(1, { duration: 105 }),
+    );
+  };
+
   const schedule = (first = false) => {
-    const wait = first ? 1800 : 6500 + Math.floor(Math.random() * 3500);
+    const wait = first ? 1600 : 6500 + Math.floor(Math.random() * 3500);
     timerRef.current = setTimeout(() => {
       const nextSide: GatorSide = Math.random() < 0.5 ? "left" : "right";
-      const firstZone: WarningZone = Math.random() < 0.5 ? "wall" : "lane";
+      const firstSpotIndex = Math.floor(Math.random() * WARNING_SPOTS.length);
       cycleRef.current += 1;
+      gatorSideRef.current = nextSide;
       setGatorSide(nextSide);
-      setWarningZone(firstZone);
+      setWarningZone(WARNING_SPOTS[firstSpotIndex]);
       setVisible(true);
       setWarning(true);
+      setShowGator(false);
       setImpactText("GATOR GOT IT!");
       setChomp(false);
       activeRef.current = false;
       setWebHazardActive("alley-gator", false);
-      gatorX.value = nextSide === "right" ? 210 : -210;
-      gatorY.value = 0;
-      biteY.value = 0;
-      gatorScale.value = 0.86;
-      gatorRotate.value = 4;
       gatorOpacity.value = 1;
       eyeBlink.value = withSequence(
-        withTiming(1, { duration: 160 }),
-        withTiming(0.12, { duration: 75 }),
-        withTiming(1, { duration: 105 }),
-        withTiming(1, { duration: 270 }),
-        withTiming(0.12, { duration: 70 }),
+        withTiming(1, { duration: 150 }),
+        withTiming(0.08, { duration: 70 }),
         withTiming(1, { duration: 100 }),
+        withTiming(1, { duration: 240 }),
+        withTiming(0.08, { duration: 65 }),
+        withTiming(1, { duration: 95 }),
       );
 
       cleanupRef.current.push(setTimeout(() => {
-        setWarningZone(firstZone === "wall" ? "lane" : "wall");
-      }, 430));
+        setWarningZone(WARNING_SPOTS[(firstSpotIndex + 1) % WARNING_SPOTS.length]);
+      }, 330));
+      cleanupRef.current.push(setTimeout(() => {
+        setWarningZone(WARNING_SPOTS[(firstSpotIndex + 2) % WARNING_SPOTS.length]);
+      }, 680));
 
       cleanupRef.current.push(setTimeout(() => {
-        setWarning(false);
         activeRef.current = true;
         setWebHazardActive("alley-gator", true);
-        const entryOffset = nextSide === "right" ? 210 : -210;
-        const overshoot = nextSide === "right" ? -8 : 8;
-        const rebound = nextSide === "right" ? 4 : -4;
-        gatorX.value = entryOffset;
-        gatorY.value = 0;
-        gatorScale.value = 0.72;
-        gatorX.value = withSequence(
-          withTiming(overshoot, { duration: 240, easing: Easing.out(Easing.back(1.7)) }),
-          withTiming(rebound, { duration: 85 }),
-          withTiming(0, { duration: 75 }),
-          withTiming(0, { duration: 2470 }),
-          withTiming(entryOffset, { duration: 330, easing: Easing.in(Easing.quad) }),
-        );
-        gatorY.value = 0;
-        gatorScale.value = withSequence(
-          withTiming(1.1, { duration: 180, easing: Easing.out(Easing.back(1.4)) }),
-          withTiming(1, { duration: 130 }),
-        );
-
         cleanupRef.current.push(setTimeout(() => {
           activeRef.current = false;
           setWebHazardActive("alley-gator", false);
+          setWarning(false);
+          setShowGator(false);
           setVisible(false);
           schedule(false);
-        }, 3200));
-      }, 900));
+        }, 2300));
+      }, 950));
     }, wait);
   };
 
@@ -142,10 +155,12 @@ export default function LaneHazardOverlay() {
       const detail = (event as CustomEvent<HazardBridgePayload>).detail;
       if (!detail || detail.type !== "pop-wall-impact" || !activeRef.current) return;
 
+      activeRef.current = false;
+      setWebHazardActive("alley-gator", false);
+      clearCycle();
+      stageGatorAttack();
+
       if (detail.powerup === "bomb") {
-        activeRef.current = false;
-        setWebHazardActive("alley-gator", false);
-        clearCycle();
         setImpactText("BOOM! GATOR BLASTED");
         impactFlash.value = withSequence(withTiming(1, { duration: 40 }), withTiming(0, { duration: 180 }));
         gatorScale.value = withSequence(
@@ -158,11 +173,7 @@ export default function LaneHazardOverlay() {
           withTiming(24, { duration: 60 }),
           withTiming(-32, { duration: 90 }),
         );
-        gatorOpacity.value = withTiming(0, { duration: 300 });
-        cleanupRef.current.push(setTimeout(() => {
-          setVisible(false);
-          schedule(false);
-        }, 340));
+        gatorOpacity.value = withTiming(0, { duration: 420 });
       } else if (detail.powerup === "lightning") {
         setImpactText("ZAP! LIGHTNING GOT THROUGH!");
         impactFlash.value = withSequence(
@@ -183,8 +194,14 @@ export default function LaneHazardOverlay() {
         );
       } else {
         setImpactText("CHOMP! GATOR GOT IT!");
-        biteBurst();
+        cleanupRef.current.push(setTimeout(biteBurst, 90));
       }
+
+      cleanupRef.current.push(setTimeout(() => {
+        setShowGator(false);
+        setVisible(false);
+        schedule(false);
+      }, 860));
     };
 
     window.addEventListener("super-strike-hazard", onImpact as EventListener);
@@ -221,7 +238,11 @@ export default function LaneHazardOverlay() {
         <View style={[
           styles.eyeWarning,
           gatorSide === "left" ? styles.warningLeft : styles.warningRight,
-          warningZone === "wall" ? styles.warningWall : styles.warningLane,
+          warningZone === "wallHigh"
+            ? styles.warningWallHigh
+            : warningZone === "wallLow"
+              ? styles.warningWallLow
+              : styles.warningLane,
         ]}>
           <Animated.View style={[styles.submergedHead, eyeStyle]}>
             <View style={styles.eyesRow}>
@@ -232,7 +253,7 @@ export default function LaneHazardOverlay() {
         </View>
       )}
 
-      {!warning && (
+      {showGator && (
         <Animated.View style={[
           styles.gatorWrap,
           gatorSide === "left" ? styles.gatorLeft : styles.gatorRight,
@@ -262,24 +283,25 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(124,255,73,0.22)",
   },
   eyeWarning: {
-    position: "absolute", width: 76, height: 20,
+    position: "absolute", width: 60, height: 16,
     alignItems: "center", zIndex: 9999,
   },
   warningLeft: { left: "7%" },
   warningRight: { right: "7%" },
-  warningWall: { top: "48%" },
-  warningLane: { top: "62%" },
+  warningWallHigh: { top: "47%" },
+  warningWallLow: { top: "55%" },
+  warningLane: { top: "63%" },
   submergedHead: {
-    position: "absolute", top: 2, width: 76, height: 16,
+    position: "absolute", top: 2, width: 60, height: 14,
     transformOrigin: "center", alignItems: "center",
   },
-  eyesRow: { position: "absolute", top: 2, width: 55, flexDirection: "row", justifyContent: "space-between" },
+  eyesRow: { position: "absolute", top: 2, width: 36, flexDirection: "row", justifyContent: "space-between" },
   marbleEye: {
-    width: 11, height: 13, borderRadius: 7, backgroundColor: "#ffb21c",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#ff6a00", shadowOpacity: 1, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
+    width: 8, height: 10, borderRadius: 5, backgroundColor: "#ffb21c",
+    borderWidth: 0.5, borderColor: "#ffd66e", alignItems: "center", justifyContent: "center",
+    shadowColor: "#ff6a00", shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
   },
-  eyePupil: { width: 2, height: 9, borderRadius: 2, backgroundColor: "#190c06" },
+  eyePupil: { width: 1.5, height: 7, borderRadius: 2, backgroundColor: "#190c06" },
   gatorWrap: { position: "absolute", bottom: "38%", width: 185, alignItems: "center", zIndex: 9999 },
   gatorLeft: { left: 8 },
   gatorRight: { right: 8 },

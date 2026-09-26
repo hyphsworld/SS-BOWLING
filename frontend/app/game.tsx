@@ -259,6 +259,7 @@ export default function Game() {
     setArmed(null);
     setKnockdown({ key: throwKey.current, pins: [] });
     stopSound("ball_roll");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     playSound("gutter");
     finishResolvedThrow(res, p.owner);
   };

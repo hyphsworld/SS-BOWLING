@@ -217,9 +217,16 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
       fallbackTimerRef.current = setTimeout(() => {
         const activeHazard = activeWebHazard();
         const targetX = throwState.powerup === "magnet" ? POCKET_X * WX : throwState.aim * AIM_SCALE * WX;
-        const blocked = activeHazard && popWallOutcome(throwState.powerup, targetX, 0).blocked;
-        if (blocked) onHazardBlockedRef.current?.();
-        else onArriveRef.current?.();
+        if (activeHazard) {
+          const outcome = popWallOutcome(throwState.powerup, targetX, 0);
+          window.dispatchEvent(new CustomEvent("super-strike-hazard", {
+            detail: { type: "pop-wall-impact", hazard: activeHazard, powerup: throwState.powerup, ballX: targetX },
+          }));
+          if (outcome.blocked) onHazardBlockedRef.current?.();
+          else onArriveRef.current?.();
+        } else {
+          onArriveRef.current?.();
+        }
       }, a.dur * 1000);
       return;
     }
