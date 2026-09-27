@@ -7,11 +7,12 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { setWebHazardActive } from "@/src/game/hazards";
+import { setWebHazardActive, type HazardId } from "@/src/game/hazards";
 import type { PowerUpId } from "@/src/game/powerups";
 
 type HazardBridgePayload = {
   type: "pop-wall-impact";
+  hazard: HazardId;
   powerup: PowerUpId | null;
   ballX: number;
 };
@@ -153,7 +154,7 @@ export default function LaneHazardOverlay() {
   useEffect(() => {
     const onImpact = (event: Event) => {
       const detail = (event as CustomEvent<HazardBridgePayload>).detail;
-      if (!detail || detail.type !== "pop-wall-impact" || !activeRef.current) return;
+      if (!detail || detail.type !== "pop-wall-impact" || detail.hazard !== "alley-gator" || !activeRef.current) return;
 
       activeRef.current = false;
       setWebHazardActive("alley-gator", false);

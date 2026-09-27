@@ -16,6 +16,7 @@ assert(overlay.includes("shadowRadius: 10"), "Alley Gator eyes must keep their n
 assert(overlay.includes('"wallHigh", "wallLow", "lane"'), "Eye warning must rotate through multiple lane positions");
 assert(overlay.includes("setShowGator(true)"), "Full Alley Gator must appear only in the impact sequence");
 assert(overlay.indexOf("stageGatorAttack();") > overlay.indexOf('type !== "pop-wall-impact"'), "Gator attack must be triggered by ball contact");
+assert(overlay.includes('detail.hazard !== "alley-gator"'), "Pop Wall impacts must never consume or trigger the Alley Gator");
 assert((lane.match(/new CustomEvent\("super-strike-hazard"/g) || []).length >= 2, "Both WebGL and fallback lanes must fire the hazard impact event");
 assert(game.includes("Haptics.ImpactFeedbackStyle.Heavy"), "A blocked ball must deliver heavy impact feedback");
 assert(meters.includes('testID={isAim ? "lock-aim-button" : "throw-button"}'), "Aim and Throw controls need stable mobile test IDs");
