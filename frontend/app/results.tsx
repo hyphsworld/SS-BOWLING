@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -61,6 +61,46 @@ export default function Results() {
   const [coachTip, setCoachTip] = useState<string | null>(null);
   const [rewardPoints, setRewardPoints] = useState(initialReward);
   const [balance, setBalance] = useState(initialBalance);
+  const [saveState, setSaveState] = useState<"saving" | "saved" | "error">("saving");
+  const [saveMessage, setSaveMessage] = useState("Saving your verified game…");
+  const saveInFlight = useRef(false);
+  const canSaveRun = Boolean(params.runId) && verifiedFrames.length === 10;
+
+  const persistScore = async (isCurrent: () => boolean = () => true) => {
+    if (mode === "multiplayer" || saveInFlight.current) return;
+    if (!canSaveRun) {
+      setSaveState("error");
+      setSaveMessage("Run data missing. Start a new game to save a score.");
+      return;
+    }
+    saveInFlight.current = true;
+    setSaveState("saving");
+    setSaveMessage("Saving your verified game…");
+    try {
+      await ensurePlayer();
+      const submitted = await api.submitScore({
+        run_id: params.runId!,
+        frames: verifiedFrames,
+        mode,
+        result: result || null,
+      });
+      if (!submitted?.ok) throw new Error("Score was not accepted.");
+      if (!isCurrent()) return;
+      setMyScore(Number(submitted.score));
+      setStrikes(Number(submitted.strikes));
+      setSpares(Number(submitted.spares));
+      setRewardPoints(Number(submitted.points_delta || 0));
+      if (Number.isFinite(Number(submitted.balance))) setBalance(Number(submitted.balance));
+      setSaveState("saved");
+      setSaveMessage("Your score is on the leaderboard.");
+    } catch (_) {
+      if (!isCurrent()) return;
+      setSaveState("error");
+      setSaveMessage("Score did not save. Tap to retry.");
+    } finally {
+      saveInFlight.current = false;
+    }
+  };
 
   useEffect(() => {
     const win = result === "win" || (mode === "solo" && myScore >= 150);
@@ -72,24 +112,7 @@ export default function Results() {
     }, 2200);
 
     (async () => {
-      try {
-        await ensurePlayer();
-        const submitted = mode === "multiplayer" ? null : await api.submitScore({
-          run_id: params.runId || "",
-          frames: verifiedFrames,
-          mode,
-          result: result || null,
-        });
-        if (!cancelled) {
-          if (submitted) {
-            setMyScore(Number(submitted.score));
-            setStrikes(Number(submitted.strikes));
-            setSpares(Number(submitted.spares));
-            setRewardPoints(Number(submitted.points_delta || 0));
-          }
-          if (Number.isFinite(Number(submitted?.balance))) setBalance(Number(submitted?.balance));
-        }
-      } catch (_) {}
+      if (mode !== "multiplayer") await persistScore(() => !cancelled);
 
       if (mode === "cpu" && (result === "win" || result === "lose" || result === "tie")) {
         recordRivalResult(result).catch(() => {});
@@ -179,11 +202,31 @@ export default function Results() {
             </View>
           </View>
 
+          {mode !== "multiplayer" && (
+            <Pressable
+              testID="score-save-status"
+              accessibilityRole="button"
+              accessibilityLabel={saveState === "saved" ? "Score saved. View leaderboard" : saveState === "error" ? saveMessage : "Saving score"}
+              disabled={saveState === "saving" || (saveState === "error" && !canSaveRun)}
+              onPress={() => saveState === "saved" ? router.push("/leaderboard") : void persistScore()}
+              style={[styles.saveCard, saveState === "saved" && styles.saveCardSaved, saveState === "error" && styles.saveCardError]}
+            >
+              {saveState === "saving" ? <ActivityIndicator size="small" color={colors.brandSecondary} /> : (
+                <Ionicons name={saveState === "saved" ? "trophy" : "refresh-circle"} size={20} color={saveState === "saved" ? colors.brandSecondary : colors.brandPrimary} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.saveTitle}>{saveState === "saved" ? "SCORE SAVED" : saveState === "error" ? "SAVE FAILED" : "SAVING SCORE"}</Text>
+                <Text style={styles.saveSub}>{saveMessage}</Text>
+              </View>
+              {saveState === "saved" && <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceSecondary} />}
+            </Pressable>
+          )}
+
           <View style={styles.pointsCard} testID="cool-points-reward">
             <Ionicons name="sparkles" size={20} color={colors.brandSecondary} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.pointsTitle}>{rewardPoints > 0 ? `+${rewardPoints} COOL POINTS` : "COOL POINTS SAVED"}</Text>
-              <Text style={styles.pointsSub}>Server-verified reward • Balance {balance}</Text>
+              <Text style={styles.pointsTitle}>{mode !== "multiplayer" && saveState === "error" ? "COOL POINTS NOT SAVED" : mode !== "multiplayer" && saveState === "saving" ? "COOL POINTS PENDING" : rewardPoints > 0 ? `+${rewardPoints} COOL POINTS` : "COOL POINTS SAVED"}</Text>
+              <Text style={styles.pointsSub}>{mode !== "multiplayer" && saveState === "error" ? "Retry score save to earn server-verified points." : `Server-verified reward • Balance ${balance}`}</Text>
             </View>
           </View>
         </Animated.View>
@@ -210,6 +253,7 @@ export default function Results() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <PrimaryButton testID="view-leaderboard-button" label="View Leaderboard" icon="trophy" variant="outline" onPress={() => router.push("/leaderboard")} />
         <PrimaryButton
           testID="play-again-button"
           label="Play Again"
@@ -242,6 +286,11 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: "row", gap: spacing.md, justifyContent: "center" },
   statChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   statText: { fontFamily: font.display, fontSize: type.base, color: colors.onSurface },
+  saveCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1.5, borderColor: colors.border },
+  saveCardSaved: { borderColor: colors.brandSecondary },
+  saveCardError: { borderColor: colors.brandPrimary },
+  saveTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.onSurface },
+  saveSub: { fontFamily: font.text, fontSize: type.sm, color: colors.onSurfaceSecondary, marginTop: 2 },
   pointsCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1.5, borderColor: colors.brandSecondary },
   pointsTitle: { fontFamily: font.display, fontSize: type.lg, color: colors.brandSecondary },
   pointsSub: { fontFamily: font.text, fontSize: type.sm, color: colors.onSurfaceSecondary, marginTop: 2 },
