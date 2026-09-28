@@ -63,7 +63,7 @@ export default function Leaderboard() {
         <FlatList
           testID="leaderboard-list"
           data={rows}
-          keyExtractor={(item, i) => item.id || String(i)}
+          keyExtractor={(item, i) => `${item.id}:${i}`}
           contentContainerStyle={{
             padding: spacing.lg,
             paddingBottom: insets.bottom + spacing.xl,
