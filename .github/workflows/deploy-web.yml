@@ -34,6 +34,9 @@ jobs:
       - name: Run mobile gameplay diagnostic
         run: npm run diagnostics:mobile-gameplay
 
+      - name: Verify strike and spare impact audio
+        run: node scripts/impact-audio-diagnostic.js
+
       - name: Export web build
         run: npx expo export --platform web --output-dir dist
 

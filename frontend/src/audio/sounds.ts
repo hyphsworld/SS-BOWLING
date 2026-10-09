@@ -9,6 +9,7 @@ export type SoundName =
   | "pin_knock"
   | "strike"
   | "spare"
+  | "result"
   | "gutter"
   | "powerup"
   | "win";
@@ -20,8 +21,9 @@ const SOURCES: Record<SoundName, number> = {
   ball_roll: require("../../assets/sounds/ball_roll.wav"),
   pin_crash: require("../../assets/sounds/pin_crash.wav"),
   pin_knock: require("../../assets/sounds/pin_knock.mp3"),
-  strike: require("../../assets/sounds/strike.wav"),
-  spare: require("../../assets/sounds/spare.wav"),
+  strike: require("../../assets/sounds/strike_impact.mp3"),
+  spare: require("../../assets/sounds/spare_impact.mp3"),
+  result: require("../../assets/sounds/spare.wav"),
   gutter: require("../../assets/sounds/gutter.wav"),
   powerup: require("../../assets/sounds/powerup.wav"),
   win: require("../../assets/sounds/win.wav"),
