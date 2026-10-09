@@ -104,7 +104,7 @@ export default function Results() {
 
   useEffect(() => {
     const win = result === "win" || (mode === "solo" && myScore >= 150);
-    playSound(win ? "win" : "spare");
+    playSound(win ? "win" : "result");
     const fallback = fallbackCoachTip(myScore, strikes, spares);
     let cancelled = false;
     let coachTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {

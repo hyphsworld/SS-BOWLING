@@ -245,7 +245,9 @@ export default function Game() {
     setArmed(null);
     setKnockdown({ key: throwKey.current, pins: res.knocked });
     stopSound("ball_roll");
-    if (res.knockedCount > 0) playSound("pin_crash");
+    if (res.isStrike) playSound("strike");
+    else if (res.isSpare) playSound("spare");
+    else if (res.knockedCount > 0) playSound("pin_crash");
     else playSound("gutter");
     finishResolvedThrow(res, p.owner);
   };
