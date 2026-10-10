@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import * as THREE from "three";
+import { addLoungeRails, makeBayMuralTexture } from "./BayLounge";
 import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
 import { SKIN_MAP } from "@/src/game/skins";
@@ -349,7 +350,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x05060a, 7, 14);
+    scene.fog = new THREE.Fog(0x05060a, 13, 24);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(58, width / height, 0.1, 100);
@@ -455,9 +456,12 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     );
     pit.position.set(0, 0.2, pitZ);
     scene.add(pit);
+    const bayMural = makeBayMuralTexture();
+    scene.userData.bayMuralTexture = bayMural;
+    addLoungeRails(scene, laneLen, laneCz);
     const backWall = new THREE.Mesh(
       new THREE.PlaneGeometry(6, 3),
-      new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.6, metalness: 0.5 }),
+      new THREE.MeshBasicMaterial({ map: bayMural, fog: false, toneMapped: false }),
     );
     backWall.position.set(0, 1.0, pitZ - 0.5);
     scene.add(backWall);
@@ -800,6 +804,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       const scene = sceneRef.current;
       if (scene) {
+        scene.userData.bayMuralTexture?.dispose();
         scene.traverse((o: any) => {
           if (o.geometry) o.geometry.dispose?.();
           if (o.material) {
