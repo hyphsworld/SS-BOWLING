@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import * as THREE from "three";
-import { addLoungeRails, makeBayMuralTexture } from "./BayLounge";
+import { addLoungeCeiling, addLoungeRails, makeBayMuralTexture, makeLoungePaintTexture } from "./BayLounge";
 import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
 import { SKIN_MAP } from "@/src/game/skins";
@@ -322,12 +322,17 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x301d10, 0.7));
     const laneLen = 12;
     const laneCz = -3.7;
-    const lane = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2, 0.08, laneLen), new THREE.MeshStandardMaterial({ map: makeWoodTexture(), roughness: 0.24, metalness: 0.15 })); lane.position.set(0, -0.04, laneCz); scene.add(lane);
-    const metalMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.45, metalness: 0.85 });
+    const floorPaint = makeLoungePaintTexture("floor");
+    const wallPaint = makeLoungePaintTexture("wall");
+    const ceilingPaint = makeLoungePaintTexture("ceiling");
+    scene.userData.loungePaintTextures = [floorPaint, wallPaint, ceilingPaint];
+    addLoungeCeiling(scene, laneLen, laneCz, ceilingPaint);
+    const lane = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2, 0.08, laneLen), new THREE.MeshStandardMaterial({ map: floorPaint, roughness: 0.24, metalness: 0.15 })); lane.position.set(0, -0.04, laneCz); scene.add(lane);
+    const metalMat = new THREE.MeshStandardMaterial({ map: wallPaint, color: 0xffffff, roughness: 0.6, metalness: 0.15 });
     const graffiti = makeGraffitiTexture();
     [-1, 1].forEach((sd) => {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.4, laneLen), metalMat); wall.position.set(sd * (LANE_HALF + 0.28), 1.0, laneCz); scene.add(wall);
-      const graf = new THREE.Mesh(new THREE.PlaneGeometry(laneLen, 2.1), new THREE.MeshBasicMaterial({ map: graffiti, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.95 }));
+      const graf = new THREE.Mesh(new THREE.PlaneGeometry(laneLen, 2.1), new THREE.MeshBasicMaterial({ map: graffiti, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.3 }));
       graf.rotation.y = sd > 0 ? -Math.PI / 2 : Math.PI / 2; graf.position.set(sd * (LANE_HALF + 0.2), 1.05, laneCz); scene.add(graf);
       const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, laneLen), new THREE.MeshBasicMaterial({ color: 0x22e1ff })); strip.position.set(sd * (LANE_HALF + 0.2), 2.05, laneCz); scene.add(strip);
     });
@@ -552,6 +557,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         if (o.material) { if (Array.isArray(o.material)) o.material.forEach((m: any) => m.dispose?.()); else o.material.dispose?.(); }
       });
       bayMural.dispose();
+      [floorPaint, wallPaint, ceilingPaint].forEach(texture => texture.dispose());
       renderer.dispose();
       try { host.removeChild(renderer.domElement); } catch {}
     };
@@ -601,7 +607,7 @@ const styles = StyleSheet.create({
   fallbackLane: {
     ...StyleSheet.absoluteFillObject,
     overflow: "hidden",
-    backgroundColor: "#B77A3B",
+    backgroundColor: "#94D8C3",
     borderLeftWidth: 12,
     borderRightWidth: 12,
     borderColor: "#242830",
