@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import * as THREE from "three";
-import { addLoungeRails, makeBayMuralTexture } from "./BayLounge";
+import { addLoungeCeiling, addLoungeRails, makeBayMuralTexture, makeLoungePaintTexture } from "./BayLounge";
 import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
 import { SKIN_MAP } from "@/src/game/skins";
@@ -379,8 +379,13 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     const laneLen = BALL_START_Z - (PIN_FRONT_Z - ROW_GAP * 3 - 0.8);
     const laneCz = (BALL_START_Z + (PIN_FRONT_Z - ROW_GAP * 3 - 0.8)) / 2;
 
+    const floorPaint = makeLoungePaintTexture("floor");
+    const wallPaint = makeLoungePaintTexture("wall");
+    const ceilingPaint = makeLoungePaintTexture("ceiling");
+    scene.userData.loungePaintTextures = [floorPaint, wallPaint, ceilingPaint];
+    addLoungeCeiling(scene, laneLen, laneCz, ceilingPaint);
     // ---- glossy wood lane ----
-    const wood = makeWoodTexture();
+    const wood = floorPaint;
     const laneMat = new THREE.MeshStandardMaterial({
       map: wood,
       color: 0xffffff,
@@ -415,9 +420,10 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
 
     // ---- metal alley side walls ----
     const metalMat = new THREE.MeshStandardMaterial({
-      color: 0x3a4048,
+      map: wallPaint,
+      color: 0xffffff,
       roughness: 0.45,
-      metalness: 0.85,
+      metalness: 0.15,
     });
     const graffiti = makeGraffitiTexture();
     [-1, 1].forEach((sd) => {
@@ -433,7 +439,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
           side: THREE.DoubleSide,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
-          opacity: 0.95,
+          opacity: 0.3,
         }),
       );
       graf.rotation.y = sd > 0 ? -Math.PI / 2 : Math.PI / 2;
@@ -805,6 +811,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
       const scene = sceneRef.current;
       if (scene) {
         scene.userData.bayMuralTexture?.dispose();
+        scene.userData.loungePaintTextures?.forEach((texture: THREE.Texture) => texture.dispose());
         scene.traverse((o: any) => {
           if (o.geometry) o.geometry.dispose?.();
           if (o.material) {

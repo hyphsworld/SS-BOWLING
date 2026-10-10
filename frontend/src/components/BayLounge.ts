@@ -66,3 +66,77 @@ export function addLoungeRails(scene: THREE.Scene, length: number, centerZ: numb
     scene.add(rail);
   });
 }
+
+
+// Static painted surfaces share the sunset mural palette. Floor art stays clear
+// through the middle so the moving ball and physical aiming chevrons read cleanly.
+export function makeLoungePaintTexture(surface: "floor" | "wall" | "ceiling"): THREE.DataTexture {
+  const w = 256, h = 512, data = new Uint8Array(w * h * 4);
+  const pixel = (x: number, y: number, c: number[]) => {
+    x = Math.round(x); y = Math.round(y);
+    if (x < 0 || x >= w || y < 0 || y >= h) return;
+    const i = ((h - 1 - y) * w + x) * 4;
+    data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = 255;
+  };
+  const stroke = (points: number[][], c: number[], radius: number) => {
+    for (let n = 1; n < points.length; n++) {
+      const [ax, ay] = points[n - 1], [bx, by] = points[n];
+      const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay)));
+      for (let j = 0; j <= steps; j++) {
+        const x = ax + (bx - ax) * j / steps, y = ay + (by - ay) * j / steps;
+        for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+          if (dx * dx + dy * dy <= radius * radius) pixel(x + dx, y + dy, c);
+        }
+      }
+    }
+  };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const grain = Math.sin(y * 0.6 + x * 0.03) * 3;
+    const seam = x % 32 === 0 ? -10 : 0;
+    const edge = x < 59 || x > 197;
+    const c = surface === "floor" ? edge ? (x < 128 ? [92, 205, 182] : [231, 137, 184]) : [153, 212, 201]
+      : surface === "wall" ? [75 + y * 0.16, 152 - y * 0.11, 186 + y * 0.06]
+      : [24 + y * 0.015, 44 + y * 0.018, 72 + y * 0.018];
+    pixel(x, y, c.map(v => v + grain + (surface === "floor" ? seam : 0)));
+  }
+  const ink = [19, 32, 62], mint = [57, 255, 154], pink = [255, 45, 149], gold = [255, 211, 80];
+  const tag = (x: number, y: number, scale: number) => {
+    const paths = [ [[0,0],[0,30]], [[20,0],[20,30]], [[0,15],[20,15]], [[29,0],[35,30],[44,14],[53,30],[59,0]] ];
+    paths.forEach(path => {
+      const pts = path.map(([px,py]) => [x + px * scale,y + py * scale]);
+      stroke(pts, ink, 4); stroke(pts, mint, 2);
+    });
+  };
+  for (let n = 0; n < 4; n++) {
+    const y = 40 + n * 125;
+    if (surface === "floor") {
+      stroke([[4,y+35],[43,y],[54,y+44],[24,y+70],[57,y+85]], ink, 4);
+      stroke([[4,y+35],[43,y],[54,y+44],[24,y+70],[57,y+85]], mint, 2);
+      stroke([[203,y+11],[248,y+35],[211,y+75],[250,y+94]], ink, 4);
+      stroke([[203,y+11],[248,y+35],[211,y+75],[250,y+94]], gold, 2);
+      tag(11,y+5,0.62);
+    } else {
+      stroke([[9,y+43],[57,y+10],[102,y+69],[161,y+18],[247,y+53]], ink, 7);
+      stroke([[9,y+43],[57,y+10],[102,y+69],[161,y+18],[247,y+53]], n%2 ? mint : pink, 4);
+      if (surface === "wall") tag(73,y+24,1.4);
+      else stroke([[113,y+10],[127,y+36],[155,y+40],[132,y+56],[137,y+85],[114,y+69],[91,y+85],[97,y+56],[73,y+40],[101,y+36],[113,y+10]],gold,2);
+    }
+  }
+  if (surface === "floor") {
+    stroke([[103,350],[107,376],[148,376],[153,350],[139,361],[128,343],[116,361],[103,350]], [89,169,154], 2);
+  }
+  const texture = new THREE.DataTexture(data,w,h,THREE.RGBAFormat);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+export function addLoungeCeiling(scene: THREE.Scene, length: number, centerZ: number, texture: THREE.Texture): void {
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(2.7,length),
+    new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, fog: false, toneMapped: false }));
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.set(0,2.22,centerZ);
+  scene.add(ceiling);
+}
