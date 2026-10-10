@@ -55,7 +55,7 @@ export default function TimingMeters({ phase, onLockAim, onLockPower }: Props) {
   };
 
   const isAim = phase === "aim";
-  const accent = isAim ? colors.brandSecondary : colors.brandPrimary;
+  const accent = isAim ? "#39FF9A" : "#FF2D95";
 
   return (
     <View style={styles.wrap}>
@@ -75,7 +75,7 @@ export default function TimingMeters({ phase, onLockAim, onLockPower }: Props) {
               {
                 left: `${(POCKET_VALUE - 0.05) * 100}%`,
                 width: "10%",
-                backgroundColor: colors.brandSecondary,
+                backgroundColor: "#39FF9A",
               },
             ]}
           />
@@ -83,7 +83,7 @@ export default function TimingMeters({ phase, onLockAim, onLockPower }: Props) {
           <View
             style={[
               styles.zone,
-              { left: "60%", width: "30%", backgroundColor: colors.brand },
+              { left: "60%", width: "30%", backgroundColor: "#FF2D95" },
             ]}
           />
         )}
@@ -98,7 +98,7 @@ export default function TimingMeters({ phase, onLockAim, onLockPower }: Props) {
           pressed && { transform: [{ scale: 0.97 }] },
         ]}
       >
-        <Text style={[styles.btnText, { color: isAim ? HUD_YELLOW : HUD_WHITE }]}>
+        <Text style={[styles.btnText, { color: "#09121D" }]}>
           {isAim ? "LOCK AIM" : "THROW!"}
         </Text>
       </Pressable>
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   btn: {
     height: 56,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -154,8 +154,6 @@ const styles = StyleSheet.create({
     fontFamily: font.display,
     fontSize: type.xl,
     fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.65)",
-    textShadowRadius: 3,
-    textShadowOffset: { width: 0, height: 1 },
+
   },
 });

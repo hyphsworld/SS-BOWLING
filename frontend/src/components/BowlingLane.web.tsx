@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import * as THREE from "three";
+import { addLoungeRails, makeBayMuralTexture } from "./BayLounge";
 import { PINS } from "@/src/game/engine";
 import { PowerUpId } from "@/src/game/powerups";
 import { SKIN_MAP } from "@/src/game/skins";
@@ -307,7 +308,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x05060a, 7, 14);
+    scene.fog = new THREE.Fog(0x05060a, 13, 24);
     sceneRef.current = scene;
     const camera = new THREE.PerspectiveCamera(58, width / height, 0.1, 100);
     camera.position.set(0, 0.62, 2.4);
@@ -315,9 +316,13 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     cameraRef.current = camera;
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const loungeKey = new THREE.DirectionalLight(0xffefd4, 1.4);
+    loungeKey.position.set(1.5, 4, 2);
+    scene.add(loungeKey);
+    scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x301d10, 0.7));
     const laneLen = 12;
     const laneCz = -3.7;
-    const lane = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2, 0.08, laneLen), new THREE.MeshStandardMaterial({ map: makeWoodTexture(), roughness: 0.45, metalness: 0.05 })); lane.position.set(0, -0.04, laneCz); scene.add(lane);
+    const lane = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2, 0.08, laneLen), new THREE.MeshStandardMaterial({ map: makeWoodTexture(), roughness: 0.24, metalness: 0.15 })); lane.position.set(0, -0.04, laneCz); scene.add(lane);
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.45, metalness: 0.85 });
     const graffiti = makeGraffitiTexture();
     [-1, 1].forEach((sd) => {
@@ -328,13 +333,16 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     });
     const pitZ = PIN_FRONT_Z - ROW_GAP * 3 - 0.55;
     const pit = new THREE.Mesh(new THREE.BoxGeometry(LANE_HALF * 2.2, 1.2, 1.0), new THREE.MeshStandardMaterial({ color: 0x050608, roughness: 0.9 })); pit.position.set(0, 0.2, pitZ); scene.add(pit);
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.6, metalness: 0.5 })); backWall.position.set(0, 1.0, pitZ - 0.5); scene.add(backWall);
+    const bayMural = makeBayMuralTexture();
+    scene.userData.bayMuralTexture = bayMural;
+    addLoungeRails(scene, laneLen, laneCz);
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), new THREE.MeshBasicMaterial({ map: bayMural, fog: false, toneMapped: false })); backWall.position.set(0, 1.0, pitZ - 0.5); scene.add(backWall);
     const amsLogoTexture = new THREE.TextureLoader().load(
       Asset.fromModule(require("@/assets/images/ams-west-logo.png")).uri,
     );
     amsLogoTexture.colorSpace = THREE.SRGBColorSpace;
     const amsLogo = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.65, 1.43),
+      new THREE.PlaneGeometry(1.5, 0.81),
       new THREE.MeshBasicMaterial({
         map: amsLogoTexture,
         transparent: true,
@@ -342,7 +350,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         toneMapped: false,
       }),
     );
-    amsLogo.position.set(0, 1.33, pitZ - 0.47);
+    amsLogo.position.set(0, 2.05, pitZ - 0.47);
     amsLogo.renderOrder = 2;
     scene.add(amsLogo);
     const neonH = new THREE.Mesh(new THREE.BoxGeometry(4, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x22e1ff })); neonH.position.set(0, 1.7, pitZ - 0.48); scene.add(neonH);
@@ -543,6 +551,7 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         if (o.geometry) o.geometry.dispose?.();
         if (o.material) { if (Array.isArray(o.material)) o.material.forEach((m: any) => m.dispose?.()); else o.material.dispose?.(); }
       });
+      bayMural.dispose();
       renderer.dispose();
       try { host.removeChild(renderer.domElement); } catch {}
     };
