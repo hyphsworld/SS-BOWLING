@@ -19,7 +19,7 @@ const SOURCES: Record<SoundName, number> = {
   tap: require("../../assets/sounds/tap.wav"),
   lock: require("../../assets/sounds/lock.wav"),
   ball_roll: require("../../assets/sounds/ball_roll.wav"),
-  pin_crash: require("../../assets/sounds/pin_crash.wav"),
+  pin_crash: require("../../assets/sounds/regular_pin_impact.mp3"),
   pin_knock: require("../../assets/sounds/pin_knock.mp3"),
   strike: require("../../assets/sounds/strike_impact.mp3"),
   spare: require("../../assets/sounds/spare_impact.mp3"),

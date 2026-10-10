@@ -26,13 +26,13 @@ async function verifyPlayers(file) {
     if(path.endsWith('/storage'))return {storage:{getItem:async()=>false,setItem:async()=>{}}};
     assert.ok(fs.existsSync(path.replace('../..','.')),`Missing sound ${path}`); return path;
   }});
-  await exports.initAudio(); exports.playSound('strike'); exports.playSound('spare'); exports.playSound('result');
-  assert.deepEqual(played.map(p=>p.split('/').pop()),['strike_impact.mp3','spare_impact.mp3','spare.wav']);
-  await exports.toggleMuted(); exports.playSound('strike'); exports.playSound('spare'); assert.equal(played.length,3);
+  await exports.initAudio(); exports.playSound('pin_crash'); exports.playSound('strike'); exports.playSound('spare'); exports.playSound('result');
+  assert.deepEqual(played.map(p=>p.split('/').pop()),['regular_pin_impact.mp3','strike_impact.mp3','spare_impact.mp3','spare.wav']);
+  await exports.toggleMuted(); exports.playSound('pin_crash'); exports.playSound('strike'); exports.playSound('spare'); assert.equal(played.length,4);
   exports.stopSound('strike'); await exports.toggleMuted(); const before=played.length; exports.playSound('strike'); assert.equal(played.length,before+1);
 }
 (async()=>{
   await verifyPlayers('src/audio/sounds.web.ts'); await verifyPlayers('src/audio/sounds.ts');
   assert.ok(fs.readFileSync('app/results.tsx','utf8').includes('playSound(win ? "win" : "result")'));
-  console.log('Impact audio passed: strike/spare/open/gutter, player/CPU, duplicate arrivals, web/native assets and mute, separate results cue.');
+  console.log('Impact audio passed: strike/spare/open/gutter, player/CPU, duplicate arrivals, regular/strike/spare web/native assets and mute, separate results cue.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
