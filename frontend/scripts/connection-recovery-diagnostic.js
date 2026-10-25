@@ -15,7 +15,7 @@ function run(code,values){const out=ts.transpileModule(code,{compilerOptions:{mo
  const lane=fs.readFileSync('src/components/BowlingLane.web.tsx','utf8'),aStart=lane.indexOf('    if (!throwState) return;'),effect=lane.slice(aStart,lane.indexOf('    if (ballRef.current) {',aStart));
  for(const unavailable of [true,false])for(const blocked of [true,false]){
   let arrivals=0,hits=0;const a={},fallbackTimerRef={current:null};timers.clear();
-  const vars={throwState:{key:1,aim:.2,powerup:null},throwAnim:{current:a},fallbackTimerRef,rendererUnavailableRef:{current:unavailable},setTimeout,clearTimeout,activeWebHazard:()=>blocked?'alley-gator':null,popWallOutcome:()=>({blocked}),POCKET_X:.175,WX:1,AIM_SCALE:1,window:{dispatchEvent:()=>{}},CustomEvent:function(){},onArriveRef:{current:()=>arrivals++},onHazardBlockedRef:{current:()=>hits++}};
+  const vars={setRendererUnavailable:()=>{},rafRef:{current:null},rendererRef:{current:null},cancelAnimationFrame:()=>{},throwState:{key:1,aim:.2,powerup:null},throwAnim:{current:a},fallbackTimerRef,rendererUnavailableRef:{current:unavailable},setTimeout,clearTimeout,activeWebHazard:()=>blocked?'alley-gator':null,popWallOutcome:()=>({blocked}),POCKET_X:.175,WX:1,AIM_SCALE:1,window:{dispatchEvent:()=>{}},CustomEvent:function(){},onArriveRef:{current:()=>arrivals++},onHazardBlockedRef:{current:()=>hits++}};
   run(effect,vars);const recover=[...timers.values()][0];recover();recover();assert.equal(arrivals+hits,1);assert.equal(hits,blocked?1:0);assert.equal(a.active,false);
   run(effect,vars);a.arrived=true;a.active=false;[...timers.values()][0]();assert.equal(arrivals+hits,1);
  }

@@ -219,6 +219,12 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     const recoverArrival = () => {
       if (a.arrived || !a.active) return;
       a.arrived = true; a.active = false;
+      if (!rendererUnavailableRef.current) {
+        rendererUnavailableRef.current = true;
+        setRendererUnavailable(true);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        if (rendererRef.current) rendererRef.current.domElement.style.display = "none";
+      }
         const activeHazard = a.hazardChecked ? null : activeWebHazard();
         a.hazardChecked = true;
         const targetX = throwState.powerup === "magnet" ? POCKET_X * WX : throwState.aim * AIM_SCALE * WX;
