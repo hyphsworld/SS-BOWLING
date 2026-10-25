@@ -1,3 +1,4 @@
+import { withDeadline } from "@/src/utils/deadline";
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from "react-native";
 import { Image } from "expo-image";
@@ -77,13 +78,15 @@ export default function Results() {
     setSaveState("saving");
     setSaveMessage("Saving your verified game…");
     try {
+      const submitted = await withDeadline((async () => {
       await ensurePlayer();
-      const submitted = await api.submitScore({
+      return api.submitScore({
         run_id: params.runId!,
         frames: verifiedFrames,
         mode,
         result: result || null,
       });
+      })(), 15000, "Score confirmation timed out.");
       if (!submitted?.ok) throw new Error("Score was not accepted.");
       if (!isCurrent()) return;
       setMyScore(Number(submitted.score));
@@ -96,7 +99,7 @@ export default function Results() {
     } catch (_) {
       if (!isCurrent()) return;
       setSaveState("error");
-      setSaveMessage("Score did not save. Tap to retry.");
+      setSaveMessage("Score save not confirmed. Tap to retry safely.");
     } finally {
       saveInFlight.current = false;
     }
