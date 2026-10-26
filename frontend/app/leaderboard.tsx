@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -31,18 +31,25 @@ export default function Leaderboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const request = useRef(0);
 
   const load = useCallback(async () => {
+    const id = ++request.current;
+    setError(null);
     try {
       const data = await api.leaderboard(30);
-      setRows(data);
-    } catch (e) {}
-    setLoading(false);
-    setRefreshing(false);
+      if (id === request.current) setRows(data);
+    } catch (_) {
+      if (id === request.current) setError("Leaderboard unavailable. Your saved scores are not erased. Tap retry.");
+    } finally {
+      if (id === request.current) { setLoading(false); setRefreshing(false); }
+    }
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
+    return () => { request.current++; };
   }, [load]);
 
   return (
@@ -55,6 +62,10 @@ export default function Leaderboard() {
         <View style={{ width: 38 }} />
       </View>
 
+      {error && <View testID="leaderboard-error" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <Text accessibilityRole="alert" style={styles.emptyText}>{error}</Text>
+        <Pressable testID="leaderboard-retry" accessibilityRole="button" onPress={() => { setLoading(true); void load(); }} style={[styles.iconBtn, { width: "100%", minHeight: 48 }]}><Text style={styles.name}>Retry leaderboard</Text></Pressable>
+      </View>}
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.brandPrimary} />
@@ -79,7 +90,7 @@ export default function Leaderboard() {
               tintColor={colors.brandPrimary}
             />
           }
-          ListEmptyComponent={
+          ListEmptyComponent={error ? null :
             <View style={styles.center}>
               <Ionicons name="trophy-outline" size={54} color={colors.border} />
               <Text style={styles.emptyText}>No scores yet. Be the first!</Text>

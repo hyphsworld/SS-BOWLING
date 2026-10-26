@@ -37,7 +37,13 @@ jobs:
       - name: Verify strike and spare impact audio
         run: node scripts/impact-audio-diagnostic.js
 
+      - name: Check connection recovery
+        run: node scripts/connection-recovery-diagnostic.js
+
       - name: Export web build
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://yuhxtdkhsltaqiagrtys.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_oYdN-75W3b7k3m1zLukI-A_BKWVDD5e
         run: npx expo export --platform web --output-dir dist
 
       - name: Upload web build artifact

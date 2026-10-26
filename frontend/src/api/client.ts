@@ -1,3 +1,4 @@
+import { withDeadline } from "@/src/utils/deadline";
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -11,14 +12,14 @@ export const supabase = createClient(url, key, {
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function requireUser() {
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await withDeadline(supabase.auth.getUser(), 10000, "Sign-in check timed out. Please retry.");
   if (error || !user) throw new Error("Sign in to HYPHSWORLD to use online Super Strike features.");
   return user;
 }
 
 async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
   await requireUser();
-  const { data, error } = await supabase.rpc(name, args);
+  const { data, error } = await withDeadline(supabase.rpc(name, args), 12000, "Connection timed out. Please retry.");
   if (error) throw new Error(error.message);
   return data as T;
 }
@@ -179,7 +180,7 @@ export const api = {
     ),
 
   leaderboard: async (limit = 20): Promise<Array<{ id: string; name: string; score: number; mode: string; strikes: number }>> => {
-    const { data, error } = await supabase.rpc("get_super_strike_leaderboard", { p_limit: limit });
+    const { data, error } = await withDeadline(supabase.rpc("get_super_strike_leaderboard", { p_limit: limit }), 12000, "Leaderboard connection timed out. Tap retry.");
     if (error) throw new Error(error.message);
     return (data || []).map((row: any) => ({
       id: row.user_id,

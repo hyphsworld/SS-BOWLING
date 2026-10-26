@@ -213,10 +213,20 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
     const a = throwAnim.current;
     a.active = true; a.arrived = false; a.t = 0; a.aim = throwState.aim; a.powerup = throwState.powerup; a.hazardChecked = false;
     a.dur = throwState.powerup === "muscle" ? 0.56 : 0.82;
-    if (rendererUnavailableRef.current) {
-      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = setTimeout(() => {
-        const activeHazard = activeWebHazard();
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    // A lost WebGL frame/context must not strand the game on BALL IN MOTION.
+    // Both fallback and watchdog use the same hazard/arrival path; arrival is once.
+    const recoverArrival = () => {
+      if (a.arrived || !a.active) return;
+      a.arrived = true; a.active = false;
+      if (!rendererUnavailableRef.current) {
+        rendererUnavailableRef.current = true;
+        setRendererUnavailable(true);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        if (rendererRef.current) rendererRef.current.domElement.style.display = "none";
+      }
+        const activeHazard = a.hazardChecked ? null : activeWebHazard();
+        a.hazardChecked = true;
         const targetX = throwState.powerup === "magnet" ? POCKET_X * WX : throwState.aim * AIM_SCALE * WX;
         if (activeHazard) {
           const outcome = popWallOutcome(throwState.powerup, targetX, 0);
@@ -228,9 +238,9 @@ export default function BowlingLane({ standing, throwState, knockdown, ballSkin,
         } else {
           onArriveRef.current?.();
         }
-      }, a.dur * 1000);
-      return;
-    }
+    };
+    fallbackTimerRef.current = setTimeout(recoverArrival, rendererUnavailableRef.current ? a.dur * 1000 : 5000);
+    if (rendererUnavailableRef.current) return;
     if (ballRef.current) {
       const mat = ballRef.current.material as THREE.MeshStandardMaterial;
       if (throwState.powerup) {
